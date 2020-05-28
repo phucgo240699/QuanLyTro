@@ -18,7 +18,7 @@ function authenticateToken(req, res, next) {
       if (err) {
         return res.json({ success: false, error: err });
       }
-      req.username = username;
+      req.username = decoded;
       next();
     }
   );
