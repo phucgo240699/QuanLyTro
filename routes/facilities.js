@@ -1,6 +1,6 @@
 const router = require("express").Router();
 
-const { facilitiesController } = require("../controllers/facilities");
+const facilitiesController = require("../controllers/facilities");
 
 router.post("/facilities", facilitiesController.create);
 router.get("/facilities/:id", facilitiesController.get);
