@@ -2,24 +2,19 @@ const Sequelize = require("sequelize");
 
 const sequelize = require("../utils/database");
 
-const Users = sequelize.define("users", {
+const Facilities = sequelize.define("facilities", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     allowNull: false,
     primaryKey: true
   },
-  username: {
+  name: {
     type: Sequelize.STRING,
     allowNull: false
   },
-  password: {
-    type: Sequelize.STRING,
-    allowNull: false
-  },
-  isAdmin: {
-    type: Sequelize.BOOLEAN,
-    allowNull: false
+  description: {
+    type: Sequelize.STRING
   },
   isDeleted: {
     type: Sequelize.BOOLEAN,
@@ -28,4 +23,4 @@ const Users = sequelize.define("users", {
   }
 });
 
-module.exports = Users;
+module.exports = Facilities;

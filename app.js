@@ -25,6 +25,8 @@ function authenticateToken(req, res, next) {
 }
 
 app.use("/", require("./routes/auth"));
+app.use("/facilities", authenticateToken, require("./routes/facilities"));
+
 app.get("/", authenticateToken, (req, res) => {
   res.send("<h1> Hello world</h1>");
 });
@@ -41,7 +43,7 @@ sequelize
   .then(result => {
     console.log("Database is connected");
     app.listen(port, () => {
-      console.log("Server is running ...");
+      console.log(`Server is running on port ${port}...`);
     });
   })
   .catch(error => {
