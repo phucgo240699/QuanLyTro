@@ -21,7 +21,7 @@ exports.create = async (req, res, next) => {
 
 exports.get = async (req, res, next) => {
   try {
-    let facility = await Facilities.findOne({ id: req.params.id, isDeleted: false });
+    let facility = await Facilities.findOne({ _id: req.params.id, isDeleted: false });
 
     return res.json({
       success: true,
