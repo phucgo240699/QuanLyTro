@@ -3,7 +3,6 @@ const router = require("express").Router();
 const facilitiesController = require("../controllers/facilities");
 
 const checkIsAdmin = (req, res, next) => {
-  console.log("hrere...");
   if (!req.user.isAdmin) {
     return res.json({ success: false, error: "Not allow" });
   } else {

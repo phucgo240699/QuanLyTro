@@ -40,7 +40,7 @@ app.get("/", authenticateToken, (req, res) => {
 });
 app.get("/users", async (req, res) => {
   try {
-    const users = await mongoose.model("users").find();
+    const users = await mongoose.model("users").find().select("username password");
     return res.json({ success: true, data: users });
   } catch (error) {
     return res.json({ success: false, error: error });

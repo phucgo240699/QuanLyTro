@@ -2,7 +2,10 @@ const Facilities = require("../model/facilities");
 
 exports.create = async (req, res, next) => {
   try {
-    const facility = await Facilities.create({ name: req.body, description: req.description });
+    const facility = await Facilities.create({
+      name: req.body.name,
+      description: req.body.description
+    });
 
     return res.json({
       success: true,
@@ -41,14 +44,14 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !total) {
       // Not paginate if request doesn't has one of these param: page, total
-      facilities = await Facilities.find({ isDeleted: false });
+      facilities = await Facilities.find({ isDeleted: false }).select("name");
     } else {
       // Paginate
       facilities = await Facilities.find({
         isDeleted: false,
         offset: total * (page - 1),
         limit: total
-      });
+      }).select("name");
     }
 
     return res.json({
