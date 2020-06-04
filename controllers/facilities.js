@@ -41,15 +41,19 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !total) {
       // Not paginate if request doesn't has one of these param: page, total
-      facilities = await Facilities.findAll({ isDeleted: true });
+      facilities = await Facilities.find({ isDeleted: false });
     } else {
       // Paginate
-      facilities = await Facilities.findAll({ isDeleted: true, offset: total * (page - 1), limit: total });
+      facilities = await Facilities.find({
+        isDeleted: false,
+        offset: total * (page - 1),
+        limit: total
+      });
     }
 
     return res.json({
       success: true,
-      data: facility
+      data: facilities
     });
   } catch (error) {
     return res.json({
@@ -61,12 +65,11 @@ exports.getAll = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const facility = await Facilities.findByPk(req.params.id);
-
-    facility.name = req.body.name;
-    facility.description = req.body.description;
-
-    facility.save();
+    const facility = await Facilities.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { name: req.body.name, description: req.body.description },
+      { new: true }
+    );
 
     return res.json({
       success: true,
@@ -82,16 +85,18 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const facility = await Facilities.findByPk(req.params.id);
+    const facility = await Facilities.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: true },
+      { new: true }
+    );
 
-    facility.isDeleted = true;
-
-    facility.save();
-
-    return res.json({
-      success: true,
-      data: facility
-    });
+    if (facility) {
+      return res.json({
+        success: true,
+        data: facility._id
+      });
+    }
   } catch (error) {
     return res.json({
       success: false,

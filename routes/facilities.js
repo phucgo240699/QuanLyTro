@@ -2,10 +2,18 @@ const router = require("express").Router();
 
 const facilitiesController = require("../controllers/facilities");
 
-router.post("/facilities", facilitiesController.create);
-router.get("/facilities/:id", facilitiesController.get);
-router.get("/facilities", facilitiesController.getAll);
-router.put("/facilities/:id", facilitiesController.update);
-router.delete("/facilities/:id", facilitiesController.delete);
+const checkIsAdmin = (req, res, next) => {
+  console.log("hrere...");
+  if (!req.user.isAdmin) {
+    return res.json({ success: false, error: "Not allow" });
+  } else {
+    next();
+  }
+};
+router.post("/", checkIsAdmin, facilitiesController.create);
+router.get("/:id", checkIsAdmin, facilitiesController.get);
+router.get("/", checkIsAdmin, facilitiesController.getAll);
+router.put("/:id", checkIsAdmin, facilitiesController.update);
+router.delete("/:id", checkIsAdmin, facilitiesController.delete);
 
 module.exports = router;

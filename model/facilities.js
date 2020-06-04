@@ -1,26 +1,21 @@
-const Sequelize = require("sequelize");
+const mongoose = require("mongoose");
 
-const sequelize = require("../utils/database");
+const Schema = mongoose.Schema;
 
-const Facilities = sequelize.define("facilities", {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true
-  },
+const Facilities = new Schema({
   name: {
-    type: Sequelize.STRING,
-    allowNull: false
+    type: String,
+    required: true
   },
   description: {
-    type: Sequelize.STRING
+    type: String
   },
   isDeleted: {
-    type: Sequelize.BOOLEAN,
-    allowNull: false,
-    defaultValue: false
+    type: Boolean,
+    required: true,
+    default: false,
+    index: true
   }
 });
 
-module.exports = Facilities;
+module.exports = mongoose.model("facilities", Facilities);
