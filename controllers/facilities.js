@@ -21,7 +21,9 @@ exports.create = async (req, res, next) => {
 
 exports.get = async (req, res, next) => {
   try {
-    let facility = await Facilities.findOne({ _id: req.params.id, isDeleted: false });
+    let facility = await Facilities.findOne({ _id: req.params.id, isDeleted: false }).select(
+      "name description createdAt updatedAt"
+    );
 
     return res.json({
       success: true,
