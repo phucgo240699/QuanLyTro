@@ -2,13 +2,8 @@ const router = require("express").Router();
 
 const facilitiesController = require("../controllers/facilities");
 
-const checkIsAdmin = (req, res, next) => {
-  if (!req.user.isAdmin) {
-    return res.json({ success: false, error: "Not allow" });
-  } else {
-    next();
-  }
-};
+const { checkIsAdmin } = require("../services/checkAdmin");
+
 router.post("/", checkIsAdmin, facilitiesController.create);
 router.get("/:id", checkIsAdmin, facilitiesController.get);
 router.get("/", checkIsAdmin, facilitiesController.getAll);

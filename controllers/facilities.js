@@ -1,10 +1,10 @@
 const Facilities = require("../model/facilities");
+const { pick } = require("lodash");
 
 exports.create = async (req, res, next) => {
   try {
     const facility = await Facilities.create({
-      name: req.body.name,
-      description: req.body.description
+      ...pick(req.body, "name", "description")
     });
 
     return res.json({
@@ -14,16 +14,17 @@ exports.create = async (req, res, next) => {
   } catch (error) {
     return res.json({
       success: false,
-      error: error
+      error: error.message
     });
   }
 };
 
 exports.get = async (req, res, next) => {
   try {
-    let facility = await Facilities.findOne({ _id: req.params.id, isDeleted: false }).select(
-      "name description createdAt updatedAt"
-    );
+    let facility = await Facilities.findOne({
+      _id: req.params.id,
+      isDeleted: false
+    }).select("name description createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -32,14 +33,14 @@ exports.get = async (req, res, next) => {
   } catch (error) {
     return res.json({
       success: false,
-      error: error
+      error: error.message
     });
   }
 };
 
 exports.getAll = async (req, res, next) => {
-  const page = req.params.page; // page index
-  const total = req.params.total; // total docs per page
+  const page = Number(req.query.page); // page index
+  const total = Number(req.query.total); // total docs per page
 
   try {
     let facilities;
@@ -49,11 +50,11 @@ exports.getAll = async (req, res, next) => {
       facilities = await Facilities.find({ isDeleted: false }).select("name");
     } else {
       // Paginate
-      facilities = await Facilities.find({
-        isDeleted: false,
-        offset: total * (page - 1),
-        limit: total
-      }).select("name");
+      facilities = await Facilities.aggregate()
+        .match({ isDeleted: false })
+        .skip(total * (page - 1))
+        .limit(total)
+        .project("name description");
     }
 
     return res.json({
@@ -63,7 +64,7 @@ exports.getAll = async (req, res, next) => {
   } catch (error) {
     return res.json({
       success: false,
-      error: error
+      error: error.message
     });
   }
 };
@@ -83,7 +84,7 @@ exports.update = async (req, res, next) => {
   } catch (error) {
     return res.json({
       success: false,
-      error: error
+      error: error.message
     });
   }
 };
@@ -105,7 +106,7 @@ exports.delete = async (req, res, next) => {
   } catch (error) {
     return res.json({
       success: false,
-      error: error
+      error: error.message
     });
   }
 };
