@@ -2,22 +2,23 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const Facilities = new Schema(
+const roomFacilities = new Schema(
   {
-    name: {
-      type: String,
+    facilityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "facilities",
+      index: true,
       required: true
     },
-    price: {
-      type: Number,
+    roomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "rooms",
+      index: true,
       required: true
     },
     quantity: {
       type: Number,
       required: true
-    },
-    description: {
-      type: String
     },
     isDeleted: {
       type: Boolean,
@@ -29,4 +30,4 @@ const Facilities = new Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("facilities", Facilities);
+module.exports = mongoose.model("roomFacilities", roomFacilities);

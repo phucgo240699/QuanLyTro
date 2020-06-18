@@ -1,10 +1,34 @@
 const Facilities = require("../model/facilities");
 const { pick } = require("lodash");
+const { model, startSession } = require("mongoose");
+
+const commitTransactions = async sessions => {
+  return await Promise.all(
+    sessions.map(async session => {
+      await session.commitTransaction();
+      await session.endSession();
+    })
+  );
+};
+
+const abortTransactions = async sessions => {
+  return await Promise.all(
+    sessions.map(async session => {
+      await session.abortTransaction();
+      await session.endSession();
+    })
+  );
+};
 
 exports.create = async (req, res, next) => {
   try {
+    // Check exist
+    const oldFacility = await Facilities.findOne({ name: req.body.name, isDeleted: false });
+    if (oldFacility) {
+      return res.json({ success: false, error: "You have created this facility" });
+    }
     const facility = await Facilities.create({
-      ...pick(req.body, "name", "description")
+      ...pick(req.body, "name", "price", "quantity", "description")
     });
 
     return res.json({
@@ -24,7 +48,7 @@ exports.get = async (req, res, next) => {
     let facility = await Facilities.findOne({
       _id: req.params.id,
       isDeleted: false
-    }).select("name description createdAt updatedAt");
+    }).select("name price quantity description createdAt updatedAt");
 
     return res.json({
       success: true,
@@ -40,21 +64,21 @@ exports.get = async (req, res, next) => {
 
 exports.getAll = async (req, res, next) => {
   const page = Number(req.query.page); // page index
-  const total = Number(req.query.total); // total docs per page
+  const limit = Number(req.query.limit); // limit docs per page
 
   try {
     let facilities;
 
-    if (!page || !total) {
-      // Not paginate if request doesn't has one of these param: page, total
-      facilities = await Facilities.find({ isDeleted: false }).select("name");
+    if (!page || !limit) {
+      // Not paginate if request doesn't has one of these param: page, limit
+      facilities = await Facilities.find({ isDeleted: false }).select("name price quantity");
     } else {
       // Paginate
       facilities = await Facilities.aggregate()
         .match({ isDeleted: false })
-        .skip(total * (page - 1))
-        .limit(total)
-        .project("name description");
+        .skip(limit * (page - 1))
+        .limit(limit)
+        .project("name price quantity");
     }
 
     return res.json({
@@ -73,7 +97,7 @@ exports.update = async (req, res, next) => {
   try {
     const facility = await Facilities.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { name: req.body.name, description: req.body.description },
+      { ...pick(req.body, "name", "price", "quantity", "description") },
       { new: true }
     );
 
@@ -91,11 +115,7 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const facility = await Facilities.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: true },
-      { new: true }
-    );
+    const facility = await Facilities.findByIdAndUpdate(req.params.id, { isDeleted: true }, { new: true });
 
     if (facility) {
       return res.json({
@@ -108,5 +128,38 @@ exports.delete = async (req, res, next) => {
       success: false,
       error: error.message
     });
+  }
+};
+
+exports.adjustQuantity = async ({ amountDifferent, facilityId }) => {
+  let sessions = [];
+  try {
+    let session = await startSession(); // Start Session
+    session.startTransaction(); // Start transaction
+    sessions.push(session); // add session to sessions(list of session)
+
+    const result = await model("facilities").findOneAndUpdate(
+      { _id: facilityId, isDeleted: false },
+      { $inc: { quantity: amountDifferent } },
+      { session, new: true }
+    );
+
+    if (result.quantity < 0) {
+      await abortTransactions(sessions);
+      return {
+        success: false,
+        error: "Out of stock"
+      };
+    }
+
+    await commitTransactions(sessions);
+    return {
+      success: true
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };

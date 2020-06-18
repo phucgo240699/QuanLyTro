@@ -1,19 +1,13 @@
 const Rooms = require("../model/rooms");
-const { pick } = require("lodash");
+const { pick, isEmpty } = require("lodash");
 
+//
+// Room
+//
 exports.create = async (req, res, next) => {
   try {
     const newRoom = await Rooms.create({
-      ...pick(
-        req.body,
-        "name",
-        "floor",
-        "price",
-        "payment",
-        "square",
-        "capacity",
-        "debt"
-      )
+      ...pick(req.body, "name", "floor", "price", "payment", "square", "capacity", "debt")
     });
 
     return res.json({ success: true, data: newRoom });
@@ -35,18 +29,20 @@ exports.get = async (req, res, next) => {
 exports.getAll = async (req, res, next) => {
   try {
     const page = Number(req.query.page); // page index
-    const total = Number(req.query.total); // total docs per page
+    const limit = Number(req.query.limit); // limit docs per page
 
     let rooms;
 
-    if (!page || !total) {
-      rooms = await Rooms.find({ isDeleted: false }).select("name price");
+    if (!page || !limit) {
+      rooms = await Rooms.find({ isDeleted: false }).select(
+        "name price name price square capacity vehicleNumber"
+      );
     } else {
       rooms = await Rooms.aggregate()
         .match({ isDeleted: false })
-        .skip(total * (page - 1))
-        .limit(total)
-        .project("name price");
+        .skip(limit * (page - 1))
+        .limit(limit)
+        .project("name price square capacity vehicleNumber");
     }
 
     return res.json({ success: true, data: rooms });
@@ -60,16 +56,7 @@ exports.update = async (req, res, next) => {
     const updatedRoom = await Rooms.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
       {
-        ...pick(
-          req.body,
-          "name",
-          "floor",
-          "price",
-          "payment",
-          "square",
-          "capacity",
-          "debt"
-        )
+        ...pick(req.body, "name", "floor", "price", "payment", "square", "capacity", "debt", "vehicleNumber")
       }
     );
 
@@ -87,7 +74,7 @@ exports.delete = async (req, res, next) => {
       { new: true }
     );
 
-    if (deletedRoom) {
+    if (isEmpty(deletedRoom)) {
       return res.json({ success: false, error: "Room was not found" });
     }
 
