@@ -1,6 +1,7 @@
 const Facilities = require("../model/facilities");
-const { pick } = require("lodash");
+const { pick, isEmpty } = require("lodash");
 const { model, startSession } = require("mongoose");
+const { findOne, update } = require("../model/facilities");
 
 const commitTransactions = async sessions => {
   return await Promise.all(
@@ -23,11 +24,18 @@ const abortTransactions = async sessions => {
 exports.create = async (req, res, next) => {
   try {
     // Check exist
-    const oldFacility = await Facilities.findOne({ name: req.body.name, isDeleted: false });
+    const oldFacility = await model("facilities").findOne({
+      name: req.body.name,
+      isDeleted: false
+    });
     if (oldFacility) {
-      return res.json({ success: false, error: "You have created this facility" });
+      return res.json({
+        success: false,
+        error: "You have created this facility"
+      });
     }
-    const facility = await Facilities.create({
+
+    const facility = await model("facilities").create({
       ...pick(req.body, "name", "price", "quantity", "description")
     });
 
@@ -71,7 +79,9 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
-      facilities = await Facilities.find({ isDeleted: false }).select("name price quantity");
+      facilities = await Facilities.find({ isDeleted: false }).select(
+        "name price quantity"
+      );
     } else {
       // Paginate
       facilities = await Facilities.aggregate()
@@ -95,15 +105,20 @@ exports.getAll = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const facility = await Facilities.findOneAndUpdate(
-      { _id: req.params.id, isDeleted: false },
-      { ...pick(req.body, "name", "price", "quantity", "description") },
+    const updated = await Facilities.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        isDeleted: false
+      },
+      {
+        ...pick(req.body, "name", "price", "quantity", "description")
+      },
       { new: true }
     );
 
     return res.json({
       success: true,
-      data: facility
+      data: updated
     });
   } catch (error) {
     return res.json({
@@ -115,14 +130,44 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const facility = await Facilities.findByIdAndUpdate(req.params.id, { isDeleted: true }, { new: true });
-
-    if (facility) {
+    if (isEmpty(req.body.name)) {
       return res.json({
-        success: true,
-        data: facility._id
+        success: false,
+        error: "Not enough property"
       });
     }
+
+    const [facilityNeedToDelete, deleted] = await Promise.all([
+      Facilities.findOne({
+        _id: req.params.id,
+        isDeleted: false
+      }),
+      Facilities.findOne({ name: req.body.name, isDeleted: true })
+    ]);
+
+    if (isEmpty(facilityNeedToDelete)) {
+      return res.json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    if (isEmpty(deleted)) {
+      facilityNeedToDelete.isDeleted = true;
+      await facilityNeedToDelete.save();
+    } else {
+      await this.adjustQuantity({
+        quantity: facilityNeedToDelete.quantity,
+        facilityId: deleted._id,
+        isDeleted: true
+      });
+      await facilityNeedToDelete.remove();
+    }
+
+    return res.json({
+      success: true,
+      data: facilityNeedToDelete._id
+    });
   } catch (error) {
     return res.json({
       success: false,
@@ -131,7 +176,11 @@ exports.delete = async (req, res, next) => {
   }
 };
 
-exports.adjustQuantity = async ({ amountDifferent, facilityId }) => {
+exports.adjustQuantity = async ({
+  quantity,
+  facilityId,
+  isDeleted = false
+}) => {
   let sessions = [];
   try {
     let session = await startSession(); // Start Session
@@ -139,8 +188,8 @@ exports.adjustQuantity = async ({ amountDifferent, facilityId }) => {
     sessions.push(session); // add session to sessions(list of session)
 
     const result = await model("facilities").findOneAndUpdate(
-      { _id: facilityId, isDeleted: false },
-      { $inc: { quantity: amountDifferent } },
+      { _id: facilityId, isDeleted: isDeleted },
+      { $inc: { quantity: quantity } },
       { session, new: true }
     );
 
