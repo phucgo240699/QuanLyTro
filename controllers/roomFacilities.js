@@ -135,7 +135,7 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     if (isEmpty(updated)) {
       return res.json({
         success: false,
-        data: "Created failed"
+        error: "Created failed"
       });
     }
 
@@ -146,7 +146,7 @@ exports.updateFacilityInRoom = async (req, res, next) => {
   } catch (error) {
     return res.json({
       success: false,
-      data: error.message
+      error: error.message
     });
   }
 };
