@@ -1,7 +1,6 @@
 const Facilities = require("../model/facilities");
 const { pick, isEmpty } = require("lodash");
 const { model, startSession } = require("mongoose");
-const { findOne, update } = require("../model/facilities");
 
 const commitTransactions = async sessions => {
   return await Promise.all(
@@ -29,7 +28,7 @@ exports.create = async (req, res, next) => {
       isDeleted: false
     });
     if (oldFacility) {
-      return res.json({
+      return res.status(409).json({
         success: false,
         error: "You have created this facility"
       });
@@ -39,12 +38,19 @@ exports.create = async (req, res, next) => {
       ...pick(req.body, "name", "price", "quantity", "description")
     });
 
-    return res.json({
+    if (isEmpty(facility)) {
+      return res.status(406).json({
+        success: false,
+        error: "Created failed"
+      });
+    }
+
+    return res.status(201).json({
       success: true,
       data: facility
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });
@@ -58,12 +64,19 @@ exports.get = async (req, res, next) => {
       isDeleted: false
     }).select("name price quantity description createdAt updatedAt");
 
-    return res.json({
+    if (isEmpty(facility)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    return res.status(201).json({
       success: true,
       data: facility
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });
@@ -91,12 +104,19 @@ exports.getAll = async (req, res, next) => {
         .project("name price quantity");
     }
 
-    return res.json({
+    if (isEmpty(facilities)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    return res.status(200).json({
       success: true,
       data: facilities
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });
@@ -116,12 +136,19 @@ exports.update = async (req, res, next) => {
       { new: true }
     );
 
-    return res.json({
+    if (isEmpty(updated)) {
+      return res.status(406).json({
+        success: false,
+        error: "Updated failed"
+      });
+    }
+
+    return res.status(200).json({
       success: true,
       data: updated
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });
@@ -130,46 +157,30 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    if (isEmpty(req.body.name)) {
-      return res.json({
-        success: false,
-        error: "Not enough property"
-      });
-    }
-
-    const [facilityNeedToDelete, deleted] = await Promise.all([
-      Facilities.findOne({
+    const deleted = await Facilities.findOneAndUpdate(
+      {
         _id: req.params.id,
         isDeleted: false
-      }),
-      Facilities.findOne({ name: req.body.name, isDeleted: true })
-    ]);
-
-    if (isEmpty(facilityNeedToDelete)) {
-      return res.json({
-        success: false,
-        error: "Not found"
-      });
-    }
+      },
+      {
+        isDeleted: true
+      },
+      { new: true }
+    );
 
     if (isEmpty(deleted)) {
-      facilityNeedToDelete.isDeleted = true;
-      await facilityNeedToDelete.save();
-    } else {
-      await this.adjustQuantity({
-        quantity: facilityNeedToDelete.quantity,
-        facilityId: deleted._id,
-        isDeleted: true
+      return res.status(406).json({
+        success: false,
+        error: "Updated failed"
       });
-      await facilityNeedToDelete.remove();
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      data: facilityNeedToDelete._id
+      data: deleted
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });

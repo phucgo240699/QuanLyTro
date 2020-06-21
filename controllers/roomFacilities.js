@@ -1,7 +1,7 @@
 const roomFacilities = require("../model/roomFacilities");
 const facilitiesController = require("../controllers/facilities");
 const { model } = require("mongoose");
-const { isEmpty } = require("lodash");
+const { isEmpty, pick } = require("lodash");
 
 //
 // Facilities in room
@@ -14,7 +14,7 @@ exports.addFacilityToRoom = async (req, res, next) => {
 
     // Check empty property
     if (isEmpty(facilityId) || isEmpty(roomId) || !quantity) {
-      return res.json({
+      return res.status(406).json({
         success: false,
         error: "Not enough property"
       });
@@ -31,7 +31,7 @@ exports.addFacilityToRoom = async (req, res, next) => {
 
     // Check exist
     if (!isEmpty(roomFacility)) {
-      return res.json({
+      return res.status(409).json({
         success: false,
         error: "You have added this facility to this room"
       });
@@ -39,7 +39,7 @@ exports.addFacilityToRoom = async (req, res, next) => {
 
     // Check not enough quantity
     if (facility.quantity < quantity) {
-      return res.json({
+      return res.status(409).json({
         success: false,
         error: "Not enough quantity in warehouse"
       });
@@ -54,7 +54,7 @@ exports.addFacilityToRoom = async (req, res, next) => {
     });
 
     if (!isEmpty(transactionResult) && transactionResult.success === false) {
-      return res.json({
+      return res.status(406).json({
         success: false,
         error: transactionResult.error
       });
@@ -66,12 +66,12 @@ exports.addFacilityToRoom = async (req, res, next) => {
       quantity: quantity
     });
 
-    return res.json({
+    return res.status(201).json({
       success: true,
       data: newDocs
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });
@@ -80,29 +80,27 @@ exports.addFacilityToRoom = async (req, res, next) => {
 
 exports.updateFacilityInRoom = async (req, res, next) => {
   try {
-    const roomId = req.params.id;
-    const facilityId = req.body.facilityId;
-    const quantity = req.body.quantity;
+    const id = req.params.id;
+    const quantity = req.body.quantity; // new quantity
     const isAdjustQuantity = req.body.isAdjustQuantity;
     // isAdjustQuantity = false When you want to destroy that facility in room forever.
     // And not adjust quantity in warehouse
 
     // Check empty property
     if (!facilityId || !roomId || !quantity || isAdjustQuantity === undefined) {
-      return res.json({
+      return res.status(406).json({
         success: false,
         error: "Not enough property"
       });
     }
 
     const roomFacility = await roomFacilities.findOne({
-      roomId: roomId,
-      facilityId: facilityId,
+      _id: id,
       isDeleted: false
     });
 
     if (isEmpty(roomFacility)) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         error: "Not found"
       });
@@ -113,38 +111,38 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     let transactionResult;
     if (isAdjustQuantity === true) {
       transactionResult = await facilitiesController.adjustQuantity({
-        quantity: -(quantity - roomFacility.quantity),
+        quantity: roomFacility.quantity - quantity,
         facilityId: facilityId
       });
     }
 
     // Check is transaction failed
     if (!isEmpty(transactionResult) && transactionResult.success === false) {
-      return res.json({
+      return res.status(406).json({
         success: false,
         error: transactionResult.error
       });
     }
 
     const updated = await roomFacilities.findOneAndUpdate(
-      { roomId: roomId, facilityId: facilityId, isDeleted: false },
-      { quantity: quantity },
+      { _id: id, isDeleted: false },
+      { ...pick(req.body, "roomId", "facilityId", "quantity") },
       { new: true }
     );
 
     if (isEmpty(updated)) {
-      return res.json({
+      return res.status(406).json({
         success: false,
-        error: "Created failed"
+        error: "Updated failed"
       });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       data: updated
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });
@@ -156,51 +154,47 @@ exports.getAllFacilitiesInRoom = async (req, res, next) => {
     const roomId = req.params.id;
 
     if (isEmpty(roomId)) {
-      return res.json({
+      return res.status(406).json({
         success: false,
         error: "Not enough property"
       });
     }
     const docs = await roomFacilities
       .find({ roomId: roomId, isDeleted: false })
-      .select("facilityId quantity")
-      .populate("facilityId", "name");
+      .select("facilityId quantity roomId")
+      .populate("facilityId", "name")
+      .populate("roomId", "name");
 
-    return res.json({ success: true, data: docs });
+    return res.status(200).json({ success: true, data: docs });
   } catch (error) {
-    return res.json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
 exports.deleteFacilityInRoom = async (req, res, next) => {
   try {
-    const roomId = req.params.id;
-    const facilityId = req.body.facilityId;
+    const id = req.params.id;
     const isAdjustQuantity = req.body.isAdjustQuantity;
 
-    if (
-      isEmpty(roomId) ||
-      isEmpty(facilityId) ||
-      isAdjustQuantity === undefined
-    ) {
-      return res.json({
+    if (isEmpty(id) || isAdjustQuantity === undefined) {
+      return res.status(406).json({
         success: false,
         error: "Not enough property"
       });
     }
 
     const doc = await roomFacilities.findOne({
-      roomId: roomId,
-      facilityId: facilityId,
+      _id: id,
       isDeleted: false
     });
 
     if (isEmpty(doc)) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         error: "Not found"
       });
     }
+
     //
     // Transaction
     //
@@ -214,24 +208,21 @@ exports.deleteFacilityInRoom = async (req, res, next) => {
 
     // Check is transaction failed
     if (!isEmpty(transactionResult) && transactionResult.success === false) {
-      return res.json({
+      return res.status(406).json({
         success: false,
         error: transactionResult.error
       });
     }
 
-    const deleted = await roomFacilities.findOneAndUpdate(
-      { roomId: roomId, facilityId: facilityId, isDeleted: false },
-      { isDeleted: true },
-      { new: true }
-    );
+    doc.isDeleted = true;
+    await doc.save();
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      data: deleted._id
+      data: doc
     });
   } catch (error) {
-    return res.json({
+    return res.status(500).json({
       success: false,
       data: error.message
     });
