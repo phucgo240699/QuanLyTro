@@ -34,7 +34,14 @@ exports.create = async (req, res, next) => {
     }
 
     const newContract = await Contracts.create({
-      ...pick(req.body, "customerId", "roomId", "dueDate", "deposit")
+      ...pick(
+        req.body,
+        "customerId",
+        "roomId",
+        "dueDate",
+        "deposit",
+        "descriptions"
+      )
     });
 
     if (isEmpty(newContract)) {

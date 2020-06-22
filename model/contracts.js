@@ -24,6 +24,9 @@ const Contracts = new Schema(
       type: Number,
       required: true
     },
+    descriptions: {
+      type: String
+    },
     isDeleted: {
       type: Boolean,
       required: true,
