@@ -6,7 +6,11 @@ const { checkIsAdmin } = require("../services/checkAdmin");
 
 // Facilities in room
 router.post("/", checkIsAdmin, roomFacilitiesController.addFacilityToRoom);
-router.get("/", checkIsAdmin, roomFacilitiesController.getAllFacilitiesInRoom);
+router.get(
+  "/:roomId",
+  checkIsAdmin,
+  roomFacilitiesController.getAllFacilitiesInRoom
+);
 router.put("/:id", checkIsAdmin, roomFacilitiesController.updateFacilityInRoom);
 router.delete(
   "/:id",

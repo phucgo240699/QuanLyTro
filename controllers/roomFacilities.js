@@ -9,7 +9,7 @@ const { isEmpty, pick } = require("lodash");
 exports.addFacilityToRoom = async (req, res, next) => {
   try {
     const facilityId = req.body.facilityId;
-    const roomId = req.params.id;
+    const roomId = req.body.roomId;
     const quantity = req.body.quantity;
 
     // Check empty property
@@ -81,13 +81,21 @@ exports.addFacilityToRoom = async (req, res, next) => {
 exports.updateFacilityInRoom = async (req, res, next) => {
   try {
     const id = req.params.id;
+    const roomId = req.body.roomId;
+    const facilityId = req.body.facilityId;
     const quantity = req.body.quantity; // new quantity
     const isAdjustQuantity = req.body.isAdjustQuantity;
     // isAdjustQuantity = false When you want to destroy that facility in room forever.
     // And not adjust quantity in warehouse
 
     // Check empty property
-    if (!facilityId || !roomId || !quantity || isAdjustQuantity === undefined) {
+    if (
+      !id ||
+      !facilityId ||
+      !roomId ||
+      !quantity ||
+      isAdjustQuantity === undefined
+    ) {
       return res.status(406).json({
         success: false,
         error: "Not enough property"
@@ -131,9 +139,9 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     );
 
     if (isEmpty(updated)) {
-      return res.status(406).json({
+      return res.status(404).json({
         success: false,
-        error: "Updated failed"
+        error: "Deleted failed"
       });
     }
 
@@ -150,8 +158,11 @@ exports.updateFacilityInRoom = async (req, res, next) => {
 };
 
 exports.getAllFacilitiesInRoom = async (req, res, next) => {
+  const page = Number(req.query.page); // page index
+  const limit = Number(req.query.limit); // limit docs per page
+
   try {
-    const roomId = req.params.id;
+    const roomId = req.params.roomId;
 
     if (isEmpty(roomId)) {
       return res.status(406).json({
@@ -159,13 +170,29 @@ exports.getAllFacilitiesInRoom = async (req, res, next) => {
         error: "Not enough property"
       });
     }
-    const docs = await roomFacilities
-      .find({ roomId: roomId, isDeleted: false })
-      .select("facilityId quantity roomId")
-      .populate("facilityId", "name")
-      .populate("roomId", "name");
 
-    return res.status(200).json({ success: true, data: docs });
+    let docs;
+
+    if (!page || !limit) {
+      // Not paginate if request doesn't has one of these param: page, limit
+      docs = await roomFacilities
+        .find({ roomId: roomId, isDeleted: false })
+        .select("facilityId quantity")
+        .populate("facilityId", "name");
+    } else {
+      // Paginate
+      docs = await roomFacilities
+        .find({ roomId: roomId, isDeleted: false })
+        .select("facilityId quantity")
+        .populate("facilityId", "name")
+        .skip(limit * (page - 1))
+        .limit(limit);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: docs
+    });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -199,10 +226,10 @@ exports.deleteFacilityInRoom = async (req, res, next) => {
     // Transaction
     //
     let transactionResult;
-    if (isAdjustQuantity === false) {
+    if (isAdjustQuantity === true) {
       transactionResult = await facilitiesController.adjustQuantity({
         quantity: doc.quantity,
-        facilityId: facilityId
+        facilityId: doc.facilityId
       });
     }
 

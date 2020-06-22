@@ -25,8 +25,8 @@ exports.create = async (req, res, next) => {
     const name = req.body.name;
     const price = req.body.price;
     const quantity = req.body.quantity;
-
-    if (isEmpty(name) || isEmpty(price) || isEmpty(quantity)) {
+    console.log(req.body);
+    if (isEmpty(name) || !price || !quantity) {
       return res.status(406).json({
         success: false,
         error: "Not enough property"
@@ -114,13 +114,6 @@ exports.getAll = async (req, res, next) => {
         .project("name price quantity");
     }
 
-    if (isEmpty(facilities)) {
-      return res.status(404).json({
-        success: false,
-        error: "Not found"
-      });
-    }
-
     return res.status(200).json({
       success: true,
       data: facilities
@@ -179,9 +172,9 @@ exports.delete = async (req, res, next) => {
     );
 
     if (isEmpty(deleted)) {
-      return res.status(404).json({
+      return res.status(406).json({
         success: false,
-        error: "Not found"
+        error: "Deleted failed"
       });
     }
 

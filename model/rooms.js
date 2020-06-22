@@ -18,9 +18,6 @@ const Rooms = new Schema(
       required: true,
       index: true
     },
-    payment: {
-      type: Number
-    },
     square: {
       // m^2
       type: Number,

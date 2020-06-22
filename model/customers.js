@@ -46,6 +46,7 @@ const Customers = new Schema(
     },
     roomId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "rooms",
       index: true
     },
     isDeleted: {

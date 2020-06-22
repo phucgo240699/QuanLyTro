@@ -1,5 +1,6 @@
 const Customers = require("../model/customers");
 const { isEmpty, pick } = require("lodash");
+const { model } = require("../model/customers");
 
 exports.create = async (req, res, next) => {
   try {
@@ -178,27 +179,37 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const deleted = await Customers.findOneAndUpdate(
-      {
+    const id = req.params.id;
+    if (isEmpty(id)) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
+
+    const [customer, user] = await Promise.all([
+      Customers.findOne({
         _id: req.params.id,
         isDeleted: false
-      },
-      {
-        isDeleted: true
-      },
-      { new: true }
-    );
+      }),
+      model("users").findOne({ owner: req.params.id, isDeleted: false })
+    ]);
 
-    if (isEmpty(deleted)) {
+    if (isEmpty(customer)) {
       return res.status(404).json({
         success: false,
         error: "Not Found"
       });
     }
 
+    customer.isDeleted = true;
+    user.isDeleted = true;
+
+    await Promise.all([customer.save(), user.save()]);
+
     return res.status(200).json({
       success: true,
-      data: deleted
+      data: customer
     });
   } catch (error) {
     return res.status(500).json({
