@@ -35,6 +35,11 @@ const authenticateToken = async (req, res, next) => {
 app.use("/", require("./routes/auth"));
 app.use("/facilities", authenticateToken, require("./routes/facilities"));
 app.use("/rooms", authenticateToken, require("./routes/rooms"));
+app.use(
+  "/room-facilities",
+  authenticateToken,
+  require("./routes/roomFacilities")
+);
 
 app.get("/", authenticateToken, (req, res) => {
   res.send("<h1> Hello world</h1>");
