@@ -22,6 +22,16 @@ const abortTransactions = async sessions => {
 
 exports.create = async (req, res, next) => {
   try {
+    const name = req.body.name;
+    const price = req.body.price;
+    const quantity = req.body.quantity;
+
+    if (isEmpty(name) || isEmpty(price) || isEmpty(quantity)) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
     // Check exist
     const oldFacility = await model("facilities").findOne({
       name: req.body.name,
@@ -169,9 +179,9 @@ exports.delete = async (req, res, next) => {
     );
 
     if (isEmpty(deleted)) {
-      return res.status(406).json({
+      return res.status(404).json({
         success: false,
-        error: "Updated failed"
+        error: "Not found"
       });
     }
 

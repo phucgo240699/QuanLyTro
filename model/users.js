@@ -22,6 +22,15 @@ const Users = new Schema(
       required: true,
       default: false,
       index: true
+    },
+    userType: {
+      type: String,
+      enum: ["customers"]
+    },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "userType",
+      index: true
     }
   },
   { timestamps: true }

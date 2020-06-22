@@ -32,7 +32,7 @@ const authenticateToken = async (req, res, next) => {
   );
 };
 
-app.use("/", require("./routes/auth"));
+app.use("/users", require("./routes/auth"));
 app.use("/facilities", authenticateToken, require("./routes/facilities"));
 app.use("/rooms", authenticateToken, require("./routes/rooms"));
 app.use(
@@ -40,6 +40,7 @@ app.use(
   authenticateToken,
   require("./routes/roomFacilities")
 );
+app.use("/customers", authenticateToken, require("./routes/customers"));
 
 app.get("/", authenticateToken, (req, res) => {
   res.send("<h1> Hello world</h1>");
