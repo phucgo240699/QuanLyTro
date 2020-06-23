@@ -133,6 +133,30 @@ exports.get = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
+    const identityCard = req.body.identityCard;
+    const name = req.body.name;
+
+    // Check not enough property
+    if (isEmpty(identityCard) || isEmpty(name)) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
+
+    const old = await Customers.findOne({
+      identityCard: identityCard,
+      isDeleted: false
+    });
+
+    // Check exist
+    if (!isEmpty(old)) {
+      return res.status(404).json({
+        success: false,
+        error: "Identity card is already exist"
+      });
+    }
+
     const updated = await Customers.findOneAndUpdate(
       {
         _id: req.params.id,

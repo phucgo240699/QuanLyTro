@@ -12,7 +12,7 @@ exports.create = async (req, res, next) => {
       isEmpty(customerId) ||
       isEmpty(roomId) ||
       isEmpty(dueDate) ||
-      isEmpty(deposit)
+      !deposit
     ) {
       return res.status(406).json({
         success: false,

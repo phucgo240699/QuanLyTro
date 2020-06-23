@@ -102,6 +102,20 @@ exports.updateFacilityInRoom = async (req, res, next) => {
       });
     }
 
+    const old = await roomFacilities.findOne({
+      roomId: roomId,
+      facilityId: facilityId,
+      isDeleted: false
+    });
+
+    // Check exist
+    if (!isEmpty(old)) {
+      return res.status(409).json({
+        success: false,
+        error: "You have added this facility to this room"
+      });
+    }
+
     const roomFacility = await roomFacilities.findOne({
       _id: id,
       isDeleted: false

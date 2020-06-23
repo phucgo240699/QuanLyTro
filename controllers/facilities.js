@@ -25,7 +25,7 @@ exports.create = async (req, res, next) => {
     const name = req.body.name;
     const price = req.body.price;
     const quantity = req.body.quantity;
-    console.log(req.body);
+
     if (isEmpty(name) || !price || !quantity) {
       return res.status(406).json({
         success: false,
@@ -128,6 +128,18 @@ exports.getAll = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
+    // Check exist
+    const oldFacility = await model("facilities").findOne({
+      name: req.body.name,
+      isDeleted: false
+    });
+    if (oldFacility) {
+      return res.status(409).json({
+        success: false,
+        error: "You have created this facility"
+      });
+    }
+
     const updated = await Facilities.findOneAndUpdate(
       {
         _id: req.params.id,

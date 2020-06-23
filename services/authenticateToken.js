@@ -14,7 +14,6 @@ const authenticateToken = async (req, res, next) => {
         .findOne({ username: decoded.username, isDeleted: false });
       if (user) {
         req.user = user;
-        console.log(user);
       } else {
         return res.json({ success: false, error: "User not found" });
       }

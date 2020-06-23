@@ -6,6 +6,29 @@ const { pick, isEmpty } = require("lodash");
 //
 exports.create = async (req, res, next) => {
   try {
+    const name = req.body.name;
+    const price = req.body.price;
+
+    if (isEmpty(name) || !price) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
+
+    const old = await roomFacilities.findOne({
+      name: req.body.name,
+      isDeleted: false
+    });
+
+    // Check exist
+    if (!isEmpty(old)) {
+      return res.status(409).json({
+        success: false,
+        error: "You created this room name"
+      });
+    }
+
     const newRoom = await Rooms.create({
       ...pick(
         req.body,

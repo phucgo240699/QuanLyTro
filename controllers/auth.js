@@ -44,6 +44,13 @@ exports.register = async (req, res, next) => {
     const isAdmin = req.body.isAdmin;
     const owner = req.body.owner;
 
+    if (isEmpty(username) || isEmpty(password) || isAdmin === undefined) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
+
     const [alreadyUser, hashedPassword] = await Promise.all([
       Users.findOne({ username: req.body.username, isDeleted: false }),
       bcrypt.hashSync(req.body.password, 10)
@@ -55,12 +62,6 @@ exports.register = async (req, res, next) => {
         error: "User is already exist"
       });
     }
-    if (isEmpty(username) || isEmpty(password) || isAdmin === undefined) {
-      return res.status(406).json({
-        success: false,
-        error: "Not enough property"
-      });
-    }
 
     if (isAdmin === false && isEmpty(req.body.owner)) {
       return res.status(406).json({
@@ -68,6 +69,8 @@ exports.register = async (req, res, next) => {
         error: "Account for customer must have owner property"
       });
     }
+
+    req.body.password = hashedPassword;
 
     const newUser = await Users.create({
       ...pick(req.body, "username", "password", "isAdmin", "owner")
