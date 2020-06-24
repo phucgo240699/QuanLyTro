@@ -109,11 +109,22 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
-  let sessions = [];
   try {
-    let session = await startSession(); // Start Session
-    session.startTransaction(); // Start transaction
-    sessions.push(session); // add session to sessions(list of session)
+    if (!isEmpty(req.body.name)) {
+      const [needToUpdate, olds] = await Promise.all([
+        Rooms.findOne({ _id: req.params.id, isDeleted: false }),
+        Rooms.find({ name: req.body.name, isDeleted: false })
+      ]);
+
+      if (needToUpdate.name !== req.body.name) {
+        if (olds.length >= 1) {
+          return res.status(409).json({
+            success: false,
+            error: "This name is already exist"
+          });
+        }
+      }
+    }
 
     const updatedRoom = await Rooms.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
@@ -130,7 +141,7 @@ exports.update = async (req, res, next) => {
           "vehicleNumber"
         )
       },
-      { new: true, session }
+      { new: true }
     );
 
     if (isEmpty(updatedRoom)) {
@@ -140,23 +151,23 @@ exports.update = async (req, res, next) => {
       });
     }
 
-    // Check duplicate
-    if (!isEmpty(req.body.name)) {
-      const oldRooms = await Rooms.find({
-        name: req.body.name,
-        isDeleted: false
-      });
+    // // Check duplicate
+    // if (!isEmpty(req.body.name)) {
+    //   const oldRooms = await Rooms.find({
+    //     name: req.body.name,
+    //     isDeleted: false
+    //   });
 
-      if (oldRooms.length >= 1) {
-        await abortTransactions(sessions);
-        return res.status(409).json({
-          success: false,
-          error: "Name is already exist"
-        });
-      }
-    }
+    //   if (oldRooms.length >= 1) {
+    //     await abortTransactions(sessions);
+    //     return res.status(409).json({
+    //       success: false,
+    //       error: "Name is already exist"
+    //     });
+    //   }
+    // }
 
-    await commitTransactions(sessions);
+    // await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,

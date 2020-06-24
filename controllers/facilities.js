@@ -113,11 +113,22 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
-  let sessions = [];
   try {
-    let session = await startSession(); // Start Session
-    session.startTransaction(); // Start transaction
-    sessions.push(session); // add session to sessions(list of session)
+    if (!isEmpty(req.body.name)) {
+      const [needToUpdate, olds] = await Promise.all([
+        Facilities.findOne({ _id: req.params.id, isDeleted: false }),
+        Facilities.find({ name: req.body.name, isDeleted: false })
+      ]);
+
+      if (needToUpdate.name !== req.body.name) {
+        if (olds.length >= 1) {
+          return res.status(409).json({
+            success: false,
+            error: "This name is already exist"
+          });
+        }
+      }
+    }
 
     const updated = await Facilities.findOneAndUpdate(
       {
@@ -127,7 +138,7 @@ exports.update = async (req, res, next) => {
       {
         ...pick(req.body, "name", "price", "quantity", "description")
       },
-      { session, new: true }
+      { new: true }
     );
 
     if (isEmpty(updated)) {
@@ -136,24 +147,6 @@ exports.update = async (req, res, next) => {
         error: "Updated failed"
       });
     }
-
-    // Check duplicate
-    if (!isEmpty(req.body.name)) {
-      const oldFacilities = await Facilities.find({
-        name: req.body.name,
-        isDeleted: false
-      });
-
-      if (oldFacilities.length >= 1) {
-        await abortTransactions(sessions);
-        return res.status(409).json({
-          success: false,
-          error: "Name is already exist"
-        });
-      }
-    }
-
-    await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,
