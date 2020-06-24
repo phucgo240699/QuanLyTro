@@ -1,5 +1,6 @@
 const Contracts = require("../model/contracts");
 const { isEmpty, pick } = require("lodash");
+const { model } = require("../model/contracts");
 
 exports.create = async (req, res, next) => {
   try {
@@ -20,19 +21,38 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const doc = await Contracts.findOne({
-      customerId,
-      roomId,
-      isDeleted: false
-    });
+    const [oldContract, customersInRoom, room] = await Promise.all([
+      Contracts.findOne({
+        customerId,
+        roomId,
+        isDeleted: false
+      }),
+      Contracts.find({ roomId: roomId, isDeleted: false }),
+      model("rooms").find({ _id: roomId, isDeleted: false })
+    ]);
 
-    if (!isEmpty(doc)) {
+    // Check exist
+    if (!isEmpty(oldContract)) {
       return res.status(409).json({
         success: false,
         error: "You have created a contract for this customer in this room"
       });
     }
 
+    // Check full
+    if (!isEmpty(customersInRoom) && !isEmpty(room)) {
+      if (room.capacity == customersInRoom.length) {
+        return res.status(406).json({
+          success: false,
+          error: "This room is full"
+        });
+      } else if (room.capacity < customersInRoom.length) {
+        return res.status(406).json({
+          success: false,
+          error: "Amount of customer is lager than capacity in this room"
+        });
+      }
+    }
     const newContract = await Contracts.create({
       ...pick(
         req.body,

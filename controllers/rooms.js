@@ -1,5 +1,10 @@
 const Rooms = require("../model/rooms");
+const { model, startSession } = require("mongoose");
 const { pick, isEmpty } = require("lodash");
+const {
+  commitTransactions,
+  abortTransactions
+} = require("../services/transactions");
 
 //
 // Room
@@ -8,15 +13,16 @@ exports.create = async (req, res, next) => {
   try {
     const name = req.body.name;
     const price = req.body.price;
+    const capacity = req.body.capacity;
 
-    if (isEmpty(name) || !price) {
+    if (isEmpty(name) || !price || !capacity) {
       return res.status(406).json({
         success: false,
         error: "Not enough property"
       });
     }
 
-    const old = await roomFacilities.findOne({
+    const old = await Rooms.findOne({
       name: req.body.name,
       isDeleted: false
     });
@@ -103,7 +109,12 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
+  let sessions = [];
   try {
+    let session = await startSession(); // Start Session
+    session.startTransaction(); // Start transaction
+    sessions.push(session); // add session to sessions(list of session)
+
     const updatedRoom = await Rooms.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
       {
@@ -118,7 +129,8 @@ exports.update = async (req, res, next) => {
           "debt",
           "vehicleNumber"
         )
-      }
+      },
+      { new: true, session }
     );
 
     if (isEmpty(updatedRoom)) {
@@ -127,6 +139,24 @@ exports.update = async (req, res, next) => {
         error: "Updated failed"
       });
     }
+
+    // Check duplicate
+    if (!isEmpty(req.body.name)) {
+      const oldRooms = await Rooms.find({
+        name: req.body.name,
+        isDeleted: false
+      });
+
+      if (oldRooms.length >= 1) {
+        await abortTransactions(sessions);
+        return res.status(409).json({
+          success: false,
+          error: "Name is already exist"
+        });
+      }
+    }
+
+    await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,

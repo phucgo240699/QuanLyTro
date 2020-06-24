@@ -1,30 +1,43 @@
 const Customers = require("../model/customers");
 const { isEmpty, pick } = require("lodash");
-const { model } = require("../model/customers");
+const { model, startSession } = require("mongoose");
+const {
+  commitTransactions,
+  abortTransactions
+} = require("../services/transactions");
 
 exports.create = async (req, res, next) => {
   try {
     const identityCard = req.body.identityCard;
     const name = req.body.name;
+    const roomId = req.body.roomId;
 
     // Check not enough property
-    if (isEmpty(identityCard) || isEmpty(name)) {
+    if (isEmpty(identityCard) || isEmpty(name) || isEmpty(roomId)) {
       return res.status(406).json({
         success: false,
         error: "Not enough property"
       });
     }
 
-    const old = await Customers.findOne({
+    const oldCustomer = await Customers.findOne({
       identityCard: identityCard,
       isDeleted: false
     });
 
     // Check exist
-    if (!isEmpty(old)) {
+    if (!isEmpty(oldCustomer)) {
       return res.status(404).json({
         success: false,
         error: "Identity card is already exist"
+      });
+    }
+
+    // Check full room
+    if (room.capacity <= customersInRoom.length) {
+      return res.status(406).json({
+        success: false,
+        error: "This room is full"
       });
     }
 
@@ -132,29 +145,28 @@ exports.get = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
+  let sessions = [];
   try {
+    let session = await startSession(); // Start Session
+    session.startTransaction(); // Start transaction
+    sessions.push(session); // add session to sessions(list of session)
+
     const identityCard = req.body.identityCard;
     const name = req.body.name;
 
-    // Check not enough property
-    if (isEmpty(identityCard) || isEmpty(name)) {
-      return res.status(406).json({
-        success: false,
-        error: "Not enough property"
+    if (!isEmpty(identityCard)) {
+      const old = await Customers.findOne({
+        ...pick(req.body, "identityCard"),
+        isDeleted: false
       });
-    }
 
-    const old = await Customers.findOne({
-      identityCard: identityCard,
-      isDeleted: false
-    });
-
-    // Check exist
-    if (!isEmpty(old)) {
-      return res.status(404).json({
-        success: false,
-        error: "Identity card is already exist"
-      });
+      // Check exist
+      if (!isEmpty(old)) {
+        return res.status(409).json({
+          success: false,
+          error: "Identity card is already exist"
+        });
+      }
     }
 
     const updated = await Customers.findOneAndUpdate(
@@ -179,7 +191,7 @@ exports.update = async (req, res, next) => {
           "roomId"
         )
       },
-      { new: true }
+      { new: true, session }
     );
 
     if (isEmpty(updated)) {
@@ -188,6 +200,24 @@ exports.update = async (req, res, next) => {
         error: "Updated failed"
       });
     }
+
+    // Check duplicate
+    if (!isEmpty(req.body.identityCard)) {
+      const oldCustomers = await Rooms.find({
+        identityCard: req.body.identityCard,
+        isDeleted: false
+      });
+
+      if (oldCustomers.length >= 1) {
+        await abortTransactions(sessions);
+        return res.status(409).json({
+          success: false,
+          error: "identityCard is already exist"
+        });
+      }
+    }
+
+    await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,

@@ -1,24 +1,10 @@
 const Facilities = require("../model/facilities");
 const { pick, isEmpty } = require("lodash");
 const { model, startSession } = require("mongoose");
-
-const commitTransactions = async sessions => {
-  return await Promise.all(
-    sessions.map(async session => {
-      await session.commitTransaction();
-      await session.endSession();
-    })
-  );
-};
-
-const abortTransactions = async sessions => {
-  return await Promise.all(
-    sessions.map(async session => {
-      await session.abortTransaction();
-      await session.endSession();
-    })
-  );
-};
+const {
+  commitTransactions,
+  abortTransactions
+} = require("../services/transactions");
 
 exports.create = async (req, res, next) => {
   try {
@@ -127,18 +113,11 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
+  let sessions = [];
   try {
-    // Check exist
-    const oldFacility = await model("facilities").findOne({
-      name: req.body.name,
-      isDeleted: false
-    });
-    if (oldFacility) {
-      return res.status(409).json({
-        success: false,
-        error: "You have created this facility"
-      });
-    }
+    let session = await startSession(); // Start Session
+    session.startTransaction(); // Start transaction
+    sessions.push(session); // add session to sessions(list of session)
 
     const updated = await Facilities.findOneAndUpdate(
       {
@@ -148,7 +127,7 @@ exports.update = async (req, res, next) => {
       {
         ...pick(req.body, "name", "price", "quantity", "description")
       },
-      { new: true }
+      { session, new: true }
     );
 
     if (isEmpty(updated)) {
@@ -157,6 +136,24 @@ exports.update = async (req, res, next) => {
         error: "Updated failed"
       });
     }
+
+    // Check duplicate
+    if (!isEmpty(req.body.name)) {
+      const oldFacilities = await Facilities.find({
+        name: req.body.name,
+        isDeleted: false
+      });
+
+      if (oldFacilities.length >= 1) {
+        await abortTransactions(sessions);
+        return res.status(409).json({
+          success: false,
+          error: "Name is already exist"
+        });
+      }
+    }
+
+    await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,

@@ -1,6 +1,6 @@
 const roomFacilities = require("../model/roomFacilities");
 const facilitiesController = require("../controllers/facilities");
-const { model } = require("mongoose");
+const { model, startSession } = require("mongoose");
 const { isEmpty, pick } = require("lodash");
 
 //
@@ -88,25 +88,30 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     // isAdjustQuantity = false When you want to destroy that facility in room forever.
     // And not adjust quantity in warehouse
 
-    // Check empty property
-    if (
-      !id ||
-      !facilityId ||
-      !roomId ||
-      !quantity ||
-      isAdjustQuantity === undefined
-    ) {
+    if (!isEmpty(roomId) || !isEmpty(facilityId)) {
       return res.status(406).json({
         success: false,
-        error: "Not enough property"
+        error: "Only can change quantity"
       });
     }
 
-    const old = await roomFacilities.findOne({
-      roomId: roomId,
-      facilityId: facilityId,
-      isDeleted: false
-    });
+    const [roomFacility, old] = await Promise.all([
+      roomFacilities.findOne({
+        _id: id,
+        isDeleted: false
+      }),
+      roomFacilities.findOne({
+        ...pick(req.body, "roomId", "facilityId"),
+        isDeleted: false
+      })
+    ]);
+
+    if (isEmpty(roomFacility)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
 
     // Check exist
     if (!isEmpty(old)) {
@@ -116,17 +121,6 @@ exports.updateFacilityInRoom = async (req, res, next) => {
       });
     }
 
-    const roomFacility = await roomFacilities.findOne({
-      _id: id,
-      isDeleted: false
-    });
-
-    if (isEmpty(roomFacility)) {
-      return res.status(404).json({
-        success: false,
-        error: "Not found"
-      });
-    }
     //
     // Transaction
     //
@@ -148,7 +142,7 @@ exports.updateFacilityInRoom = async (req, res, next) => {
 
     const updated = await roomFacilities.findOneAndUpdate(
       { _id: id, isDeleted: false },
-      { ...pick(req.body, "roomId", "facilityId", "quantity") },
+      { ...pick(req.body, "quantity") },
       { new: true }
     );
 

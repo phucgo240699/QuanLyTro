@@ -57,9 +57,9 @@ exports.register = async (req, res, next) => {
     ]);
 
     if (alreadyUser) {
-      return res.json({
+      return res.status(409).json({
         success: false,
-        error: "User is already exist"
+        error: "Username is already exist"
       });
     }
 

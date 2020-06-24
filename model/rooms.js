@@ -25,7 +25,8 @@ const Rooms = new Schema(
     },
     capacity: {
       // Maximum people in a room
-      type: Number
+      type: Number,
+      required: true
     },
     debt: {
       type: Number
