@@ -24,6 +24,10 @@ const Contracts = new Schema(
       type: Number,
       required: true
     },
+    entryDate: {
+      type: Date,
+      required: true
+    },
     descriptions: {
       type: String
     },
