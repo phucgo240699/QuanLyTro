@@ -41,7 +41,7 @@ exports.create = async (req, res, next) => {
         "square",
         "capacity",
         "debt",
-        "vehicleNumber"
+        "amountOfVehicles"
       )
     });
     if (isEmpty(newRoom)) {
@@ -89,14 +89,14 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !limit) {
       rooms = await Rooms.find({ isDeleted: false }).select(
-        "name price name price square capacity vehicleNumber"
+        "name price name price square capacity amountOfVehicles"
       );
     } else {
       rooms = await Rooms.aggregate()
         .match({ isDeleted: false })
         .skip(limit * (page - 1))
         .limit(limit)
-        .project("name price square capacity vehicleNumber");
+        .project("name price square capacity amountOfVehicles");
     }
 
     return res.status(200).json({ success: true, data: rooms });
@@ -134,7 +134,7 @@ exports.update = async (req, res, next) => {
           "square",
           "capacity",
           "debt",
-          "vehicleNumber"
+          "amountOfVehicles"
         )
       },
       { new: true }

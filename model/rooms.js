@@ -31,7 +31,8 @@ const Rooms = new Schema(
     debt: {
       type: Number
     },
-    vehicleNumber: {
+    amountOfVehicles: {
+      // Amount of vehicles
       type: Number
     },
     isDeleted: {
