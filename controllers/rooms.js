@@ -1,10 +1,7 @@
 const Rooms = require("../model/rooms");
 const { model, startSession } = require("mongoose");
 const { pick, isEmpty } = require("lodash");
-const {
-  commitTransactions,
-  abortTransactions
-} = require("../services/transactions");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 
 //
 // Room
@@ -41,10 +38,10 @@ exports.create = async (req, res, next) => {
         "name",
         "floor",
         "price",
-        "payment",
         "square",
         "capacity",
-        "debt"
+        "debt",
+        "vehicleNumber"
       )
     });
     if (isEmpty(newRoom)) {
@@ -134,7 +131,6 @@ exports.update = async (req, res, next) => {
           "name",
           "floor",
           "price",
-          "payment",
           "square",
           "capacity",
           "debt",

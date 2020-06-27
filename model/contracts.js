@@ -28,6 +28,9 @@ const Contracts = new Schema(
       type: Date,
       required: true
     },
+    latestInvoiceDate: {
+      type: Date
+    },
     descriptions: {
       type: String
     },

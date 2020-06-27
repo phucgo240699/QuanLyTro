@@ -25,7 +25,6 @@ exports.create = async (req, res, next) => {
 
     const [oldContract, customersInRoom, room] = await Promise.all([
       Contracts.findOne({
-        customerId,
         roomId,
         isDeleted: false
       }),
@@ -56,15 +55,7 @@ exports.create = async (req, res, next) => {
       }
     }
     const newContract = await Contracts.create({
-      ...pick(
-        req.body,
-        "customerId",
-        "roomId",
-        "dueDate",
-        "deposit",
-        "entryDate",
-        "descriptions"
-      )
+      ...pick(req.body, "customerId", "roomId", "dueDate", "deposit", "entryDate", "descriptions")
     });
 
     if (isEmpty(newContract)) {
