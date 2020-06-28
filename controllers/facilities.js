@@ -1,12 +1,10 @@
 const Facilities = require("../model/facilities");
 const { pick, isEmpty } = require("lodash");
 const { model, startSession } = require("mongoose");
-const {
-  commitTransactions,
-  abortTransactions
-} = require("../services/transactions");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 
 exports.create = async (req, res, next) => {
+  let sessions = [];
   try {
     const name = req.body.name;
     const price = req.body.price;
@@ -18,21 +16,20 @@ exports.create = async (req, res, next) => {
         error: "Not enough property"
       });
     }
-    // Check exist
-    const oldFacility = await model("facilities").findOne({
-      name: req.body.name,
-      isDeleted: false
-    });
-    if (oldFacility) {
-      return res.status(409).json({
-        success: false,
-        error: "You have created this facility"
-      });
-    }
 
-    const facility = await model("facilities").create({
-      ...pick(req.body, "name", "price", "quantity", "description")
-    });
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
+    const facility = await model("facilities").create(
+      [
+        {
+          ...pick(req.body, "name", "price", "quantity", "description")
+        }
+      ],
+      { session: session }
+    );
 
     if (isEmpty(facility)) {
       return res.status(406).json({
@@ -40,6 +37,22 @@ exports.create = async (req, res, next) => {
         error: "Created failed"
       });
     }
+
+    // Check exist
+    const old = await Facilities.find({
+      ...pick(req.body, "name"),
+      isDeleted: false
+    });
+    if (old.length > 0) {
+      await abortTransactions(sessions);
+      return res.status(409).json({
+        success: false,
+        error: "This name is already exist"
+      });
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(201).json({
       success: true,
@@ -192,16 +205,12 @@ exports.delete = async (req, res, next) => {
   }
 };
 
-exports.adjustQuantity = async ({
-  quantity,
-  facilityId,
-  isDeleted = false
-}) => {
-  let sessions = [];
+exports.adjustQuantity = async ({ quantity, facilityId, isDeleted = false, session }) => {
+  //let sessions = [];
   try {
-    let session = await startSession(); // Start Session
-    session.startTransaction(); // Start transaction
-    sessions.push(session); // add session to sessions(list of session)
+    // let session = await startSession(); // Start Session
+    // session.startTransaction(); // Start transaction
+    // sessions.push(session); // add session to sessions(list of session)
 
     const result = await model("facilities").findOneAndUpdate(
       { _id: facilityId, isDeleted: isDeleted },
@@ -210,14 +219,12 @@ exports.adjustQuantity = async ({
     );
 
     if (result.quantity < 0) {
-      await abortTransactions(sessions);
       return {
         success: false,
         error: "Out of stock"
       };
     }
 
-    await commitTransactions(sessions);
     return {
       success: true
     };

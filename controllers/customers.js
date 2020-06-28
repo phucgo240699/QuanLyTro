@@ -1,12 +1,10 @@
 const Customers = require("../model/customers");
 const { isEmpty, pick } = require("lodash");
 const { model, startSession } = require("mongoose");
-const {
-  commitTransactions,
-  abortTransactions
-} = require("../services/transactions");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 
 exports.create = async (req, res, next) => {
+  let sessions = [];
   try {
     const identityCard = req.body.identityCard;
     const name = req.body.name;
@@ -20,51 +18,82 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const oldCustomer = await Customers.findOne({
-      identityCard: identityCard,
-      isDeleted: false
-    });
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
 
-    // Check exist
-    if (!isEmpty(oldCustomer)) {
-      return res.status(404).json({
-        success: false,
-        error: "Identity card is already exist"
-      });
-    }
-
-    // Check full room
-    if (room.capacity <= customersInRoom.length) {
-      return res.status(406).json({
-        success: false,
-        error: "This room is full"
-      });
-    }
-
-    const newCustomer = await Customers.create({
-      ...pick(
-        req.body,
-        "name",
-        "email",
-        "phoneNumber",
-        "birthday",
-        "identityCard",
-        "identityCardFront",
-        "identityCardBack",
-        "province",
-        "district",
-        "ward",
-        "address",
-        "roomId"
-      )
-    });
+    const newCustomer = await Customers.create(
+      [
+        {
+          ...pick(
+            req.body,
+            "name",
+            "email",
+            "phoneNumber",
+            "birthday",
+            "identityCard",
+            "identityCardFront",
+            "identityCardBack",
+            "province",
+            "district",
+            "ward",
+            "address",
+            "roomId"
+          )
+        }
+      ],
+      { session: session }
+    );
 
     if (isEmpty(newCustomer)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Created failed"
       });
     }
+
+    const [oldCustomers, room, customersInRoom] = await Promise.all([
+      Customers.find({
+        identityCard: identityCard,
+        roomId: roomId,
+        isDeleted: false
+      }),
+      model("rooms").findOne({
+        _id: roomId,
+        isDeleted: false
+      }),
+      Customers.find({ roomId: roomId, isDeleted: false })
+    ]);
+
+    // Check exist
+    if (oldCustomers.length > 0) {
+      await abortTransactions(sessions);
+      return res.status(409).json({
+        success: false,
+        error: "This customer's identity card is already in this room"
+      });
+    }
+
+    // Check room may be empty || full room
+    if (isEmpty(room)) {
+      await abortTransactions(sessions);
+      return res.status(404).json({
+        success: false,
+        error: "Room not found"
+      });
+    }
+    if (room.capacity <= customersInRoom.length) {
+      await abortTransactions(sessions);
+      return res.status(406).json({
+        success: false,
+        error: "Room had full"
+      });
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(201).json({
       success: true,
@@ -146,24 +175,24 @@ exports.get = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    if (!isEmpty(req.body.identityCard)) {
-      const [needToUpdate, olds] = await Promise.all([
-        Customers.findOne({ _id: req.params.id, isDeleted: false }),
-        Customers.find({
-          identityCard: req.body.identityCard,
-          isDeleted: false
-        })
-      ]);
+    // if (!isEmpty(req.body.identityCard)) {
+    //   const [needToUpdate, olds] = await Promise.all([
+    //     Customers.findOne({ _id: req.params.id, isDeleted: false }),
+    //     Customers.find({
+    //       identityCard: req.body.identityCard,
+    //       isDeleted: false
+    //     })
+    //   ]);
 
-      if (needToUpdate.identityCard !== req.body.identityCard) {
-        if (olds.length >= 1) {
-          return res.status(409).json({
-            success: false,
-            error: "This identityCard is already exist"
-          });
-        }
-      }
-    }
+    //   if (needToUpdate.identityCard !== req.body.identityCard) {
+    //     if (olds.length >= 1) {
+    //       return res.status(409).json({
+    //         success: false,
+    //         error: "This identityCard is already exist"
+    //       });
+    //     }
+    //   }
+    // }
 
     const updated = await Customers.findOneAndUpdate(
       {

@@ -1,6 +1,7 @@
 const roomFacilities = require("../model/roomFacilities");
 const facilitiesController = require("../controllers/facilities");
 const { model, startSession } = require("mongoose");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 const { isEmpty, pick } = require("lodash");
 
 //
@@ -20,55 +21,72 @@ exports.addFacilityToRoom = async (req, res, next) => {
       });
     }
 
-    const [roomFacility, facility] = await Promise.all([
-      roomFacilities.findOne({
-        roomId: roomId,
+    //
+    // Transactions
+    //
+    let sessions = [];
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
+    // Quantity & Create
+    const [transactionResult, newDoc] = await Promise.all([
+      facilitiesController.adjustQuantity({
+        quantity: -quantity,
         facilityId: facilityId,
-        isDeleted: false
+        session: session
       }),
-      model("facilities").findOne({ _id: facilityId, isDeleted: false })
+      roomFacilities.create(
+        [
+          {
+            roomId: roomId,
+            facilityId: facilityId,
+            quantity: quantity
+          }
+        ],
+        { session: session }
+      )
     ]);
 
-    // Check exist
-    if (!isEmpty(roomFacility)) {
-      return res.status(409).json({
-        success: false,
-        error: "You have added this facility to this room"
-      });
-    }
-
-    // Check not enough quantity
-    if (facility.quantity < quantity) {
-      return res.status(409).json({
-        success: false,
-        error: "Not enough quantity in warehouse"
-      });
-    }
-
-    //
-    // Transaction
-    //
-    const transactionResult = await facilitiesController.adjustQuantity({
-      quantity: -quantity,
-      facilityId: facilityId
-    });
-
+    // Check after adjusted quantity
     if (!isEmpty(transactionResult) && transactionResult.success === false) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: transactionResult.error
       });
     }
 
-    const newDocs = await roomFacilities.create({
+    // Check after created
+    if (isEmpty(newDoc)) {
+      await abortTransactions(sessions);
+      return res.status(406).json({
+        success: false,
+        error: "Created failed"
+      });
+    }
+
+    // Check duplicate
+    const old = await roomFacilities.find({
       roomId: roomId,
       facilityId: facilityId,
-      quantity: quantity
+      isDeleted: false
     });
+
+    if (old.length > 0) {
+      await abortTransactions(sessions);
+      return res.status(409).json({
+        success: false,
+        error: "This facility for this room is already exist"
+      });
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(201).json({
       success: true,
-      data: newDocs
+      data: newDoc
     });
   } catch (error) {
     return res.status(500).json({

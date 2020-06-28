@@ -1,7 +1,10 @@
 const Params = require("../model/params");
 const { pick, isEmpty } = require("lodash");
+const { model, startSession } = require("mongoose");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 
 exports.create = async (req, res, next) => {
+  let sessions = [];
   try {
     const name = req.body.name;
     const value = req.body.value;
@@ -13,16 +16,14 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const old = await Params.findOne({ name: name });
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
 
-    if (!isEmpty(old)) {
-      return res.status(409).json({
-        success: false,
-        error: "This name is already exist"
-      });
-    }
-
-    const newParam = await Params.create({ ...pick(req.body, "name", "value") });
+    const newParam = await Params.create([{ name: name, value: value }], {
+      session: session
+    });
 
     if (isEmpty(newParam)) {
       return res.status(406).json({
@@ -30,6 +31,23 @@ exports.create = async (req, res, next) => {
         error: "Created failed"
       });
     }
+
+    const old = await Params.find({
+      ...pick(req.body, "name"),
+      isDeleted: false
+    });
+
+    // Check exist
+    if (old.length > 0) {
+      await abortTransactions(sessions);
+      return res.status(409).json({
+        success: false,
+        error: "This name is already exist"
+      });
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(201).json({
       success: true,

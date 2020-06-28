@@ -7,6 +7,7 @@ const { commitTransactions, abortTransactions } = require("../services/transacti
 // Room
 //
 exports.create = async (req, res, next) => {
+  let sessions = [];
   try {
     const name = req.body.name;
     const price = req.body.price;
@@ -19,37 +20,51 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const old = await Rooms.findOne({
-      name: req.body.name,
-      isDeleted: false
-    });
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
 
-    // Check exist
-    if (!isEmpty(old)) {
-      return res.status(409).json({
-        success: false,
-        error: "You created this room name"
-      });
-    }
+    const newRoom = await Rooms.create(
+      [
+        {
+          ...pick(
+            req.body,
+            "name",
+            "floor",
+            "price",
+            "square",
+            "capacity",
+            "debt",
+            "amountOfVehicles"
+          )
+        }
+      ],
+      { session: session }
+    );
 
-    const newRoom = await Rooms.create({
-      ...pick(
-        req.body,
-        "name",
-        "floor",
-        "price",
-        "square",
-        "capacity",
-        "debt",
-        "amountOfVehicles"
-      )
-    });
     if (isEmpty(newRoom)) {
       return res.status(406).json({
         success: false,
         error: "Created failed"
       });
     }
+
+    // Check exist
+    const old = await Rooms.find({
+      ...pick(req.body, "name"),
+      isDeleted: false
+    });
+    if (old.length > 0) {
+      await abortTransactions(sessions);
+      return res.status(409).json({
+        success: false,
+        error: "This name is already exist"
+      });
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(201).json({
       success: true,

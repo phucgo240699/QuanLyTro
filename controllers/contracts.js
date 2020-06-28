@@ -26,9 +26,10 @@ exports.create = async (req, res, next) => {
     const [oldContract, customersInRoom, room] = await Promise.all([
       Contracts.findOne({
         roomId,
+        customerId,
         isDeleted: false
       }),
-      Contracts.find({ roomId: roomId, isDeleted: false }),
+      model("customers").find({ roomId: roomId, isDeleted: false }),
       model("rooms").find({ _id: roomId, isDeleted: false })
     ]);
 
@@ -42,7 +43,7 @@ exports.create = async (req, res, next) => {
 
     // Check full
     if (!isEmpty(customersInRoom) && !isEmpty(room)) {
-      if (room.capacity == customersInRoom.length) {
+      if (room.capacity === customersInRoom.length) {
         return res.status(406).json({
           success: false,
           error: "This room is full"
@@ -50,12 +51,20 @@ exports.create = async (req, res, next) => {
       } else if (room.capacity < customersInRoom.length) {
         return res.status(406).json({
           success: false,
-          error: "Amount of customer is lager than capacity in this room"
+          error: "Amount of customers is lager than capacity in this room"
         });
       }
     }
     const newContract = await Contracts.create({
-      ...pick(req.body, "customerId", "roomId", "dueDate", "deposit", "entryDate", "descriptions")
+      ...pick(
+        req.body,
+        "customerId",
+        "roomId",
+        "dueDate",
+        "deposit",
+        "entryDate",
+        "descriptions"
+      )
     });
 
     if (isEmpty(newContract)) {
