@@ -57,14 +57,13 @@ exports.create = async (req, res, next) => {
     const [oldCustomers, room, customersInRoom] = await Promise.all([
       Customers.find({
         identityCard: identityCard,
-        roomId: roomId,
         isDeleted: false
       }),
       model("rooms").findOne({
         _id: roomId,
         isDeleted: false
       }),
-      Customers.find({ roomId: roomId, isDeleted: false })
+      Customers.find({ roomId: roomId, isDeleted: false }) // not include the newest customer you just create
     ]);
 
     // Check exist
@@ -72,11 +71,11 @@ exports.create = async (req, res, next) => {
       await abortTransactions(sessions);
       return res.status(409).json({
         success: false,
-        error: "This customer's identity card is already in this room"
+        error: "This identity card is already exist"
       });
     }
 
-    // Check room may be empty || full room
+    // Check room not found
     if (isEmpty(room)) {
       await abortTransactions(sessions);
       return res.status(404).json({
@@ -84,8 +83,14 @@ exports.create = async (req, res, next) => {
         error: "Room not found"
       });
     }
-    if (room.capacity <= customersInRoom.length) {
-      await abortTransactions(sessions);
+    if (Number(customersInRoom.length) + 1 < Number(room.capacity)) {
+      room.slotStatus = "available";
+    } else if (Number(customersInRoom.length) + 1 === Number(room.capacity)) {
+      room.slotStatus = "full";
+      await room.save();
+    } else if (Number(customersInRoom.length) + 1 > Number(room.capacity)) {
+      room.slotStatus = "full";
+      await Promise.all([abortTransactions(sessions), room.save()]);
       return res.status(406).json({
         success: false,
         error: "Room had full"
@@ -93,7 +98,7 @@ exports.create = async (req, res, next) => {
     }
 
     // Done
-    await commitTransactions(sessions);
+    await Promise.all([commitTransactions(sessions), room.save()]);
 
     return res.status(201).json({
       success: true,
@@ -212,8 +217,7 @@ exports.update = async (req, res, next) => {
           "province",
           "district",
           "ward",
-          "address",
-          "roomId"
+          "address"
         )
       },
       { new: true }

@@ -35,6 +35,12 @@ const Rooms = new Schema(
       // Amount of vehicles
       type: Number
     },
+    slotStatus: {
+      type: String,
+      enum: ["empty", "available", "full"],
+      required: true,
+      default: "empty"
+    },
     isDeleted: {
       type: Boolean,
       required: true,
