@@ -25,8 +25,7 @@ exports.create = async (req, res, next) => {
 
     const [oldContract, customersInRoom, room] = await Promise.all([
       Contracts.findOne({
-        roomId,
-        customerId,
+        $or: [{ roomId: roomId }, { customerId: customerId }],
         isDeleted: false
       }),
       model("customers").find({ roomId: roomId, isDeleted: false }),

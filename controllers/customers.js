@@ -121,9 +121,9 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
-      customers = await Customers.find({ isDeleted: false }).select(
-        "name identityCard phoneNumber birthday"
-      );
+      customers = await Customers.find({
+        isDeleted: false
+      }).select("name identityCard phoneNumber birthday");
     } else {
       // Paginate
       customers = await Customers.aggregate()
@@ -179,6 +179,7 @@ exports.get = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
+  let sessions = [];
   try {
     // if (!isEmpty(req.body.identityCard)) {
     //   const [needToUpdate, olds] = await Promise.all([
@@ -199,37 +200,84 @@ exports.update = async (req, res, next) => {
     //   }
     // }
 
-    const updated = await Customers.findOneAndUpdate(
-      {
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
+    const [beforeUpdated, updated] = await Promise.all([
+      Customers.findOneAndUpdate({
         _id: req.params.id,
         isDeleted: false
-      },
-      {
-        ...pick(
-          req.body,
-          "name",
-          "email",
-          "phoneNumber",
-          "birthday",
-          "identityCard",
-          "identityCardFront",
-          "identityCardBack",
-          "province",
-          "district",
-          "ward",
-          "address"
-        )
-      },
-      { new: true }
-    );
+      }),
+      Customers.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          isDeleted: false
+        },
+        {
+          ...pick(
+            req.body,
+            "name",
+            "email",
+            "phoneNumber",
+            "birthday",
+            "identityCard",
+            "identityCardFront",
+            "identityCardBack",
+            "province",
+            "district",
+            "ward",
+            "address",
+            "roomId"
+          )
+        },
+        { session, new: true }
+      )
+    ]);
 
     if (isEmpty(updated)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Updated failed"
       });
     }
 
+    // Check contract and new room when change roomId
+    if (beforeUpdated.roomId !== updated.roomId) {
+      const [room, contractOfThisCustomer] = await Promise.all([
+        model("rooms").findOne({ roomId: updated.roomId, isDeleted: false }),
+        model("contracts").findOne({ customerId: updated._id, isDeleted: false })
+      ]);
+
+      if (!isEmpty(contractOfThisCustomer)) {
+        await abortTransactions(sessions);
+        return res.status(406).json({
+          success: false,
+          error: "This customer is host, you must delete contract first"
+        });
+      }
+
+      if (isEmpty(room)) {
+        await abortTransactions(sessions);
+        return res.status(404).json({
+          success: false,
+          error: "Room not found"
+        });
+      } else {
+        await abortTransactions(sessions);
+        if (room.slotStatus === "full") {
+          return res.status(406).json({
+            success: false,
+            error: "This room is full now"
+          });
+        }
+      }
+    }
+
+    // Done
+    await commitTransactions(sessions);
     return res.status(200).json({
       success: true,
       data: updated
@@ -252,18 +300,26 @@ exports.delete = async (req, res, next) => {
       });
     }
 
-    const [customer, user] = await Promise.all([
+    const [customer, user, contractOfThisCustomer] = await Promise.all([
       Customers.findOne({
         _id: req.params.id,
         isDeleted: false
       }),
-      model("users").findOne({ owner: req.params.id, isDeleted: false })
+      model("users").findOne({ owner: req.params.id, isDeleted: false }),
+      model("contracts").findOne({ customerId: req.params.id, isDeleted: false })
     ]);
 
     if (isEmpty(customer)) {
       return res.status(404).json({
         success: false,
         error: "Not Found"
+      });
+    }
+
+    if (!isEmpty(contractOfThisCustomer)) {
+      return res.status(406).json({
+        success: false,
+        error: "This customer is host, you must delete contract first"
       });
     }
 
