@@ -19,6 +19,7 @@ app.use("/room-facilities", authenticateToken, require("./routes/roomFacilities"
 app.use("/customers", authenticateToken, require("./routes/customers"));
 app.use("/contracts", authenticateToken, require("./routes/contracts"));
 app.use("/invoices", authenticateToken, require("./routes/invoices"));
+app.use("/params", authenticateToken, require("./routes/params"));
 
 app.get("/", authenticateToken, (req, res) => {
   res.send("<h1> Hello world</h1>");

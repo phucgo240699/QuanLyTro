@@ -74,7 +74,10 @@ exports.create = async (req, res, next) => {
 
     // Check some prices
     if (!parkingPrice) {
-      parkingPrice = Number(room.vehicleNumber) * Number(param.value);
+      parkingPrice =
+        (room.amountOfVehicles ? Number(room.amountOfVehicles) : 0) *
+        (param.value ? Number(param.value) : 0) *
+        30;
     }
 
     // Calculate total price
