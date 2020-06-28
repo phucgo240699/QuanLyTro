@@ -104,14 +104,14 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !limit) {
       rooms = await Rooms.find({ isDeleted: false }).select(
-        "name price name price square capacity amountOfVehicles"
+        "name price name price square capacity amountOfVehicles slotStatus"
       );
     } else {
       rooms = await Rooms.aggregate()
         .match({ isDeleted: false })
         .skip(limit * (page - 1))
         .limit(limit)
-        .project("name price square capacity amountOfVehicles");
+        .project("name price square capacity amountOfVehicles slotStatus");
     }
 
     return res.status(200).json({ success: true, data: rooms });
