@@ -26,18 +26,19 @@ exports.create = async (req, res, next) => {
     });
 
     if (isEmpty(newParam)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Created failed"
       });
     }
 
+    // Check exist
     const old = await Params.find({
       ...pick(req.body, "name"),
       isDeleted: false
     });
 
-    // Check exist
     if (old.length > 0) {
       await abortTransactions(sessions);
       return res.status(409).json({
@@ -65,7 +66,7 @@ exports.update = async (req, res, next) => {
   try {
     const updated = await Params.findOneAndUpdate(
       { _id: req.params.id },
-      { ...pick(req.body, "name", "value") },
+      { ...pick(req.body, "value") },
       { new: true }
     );
     if (isEmpty(updated)) {

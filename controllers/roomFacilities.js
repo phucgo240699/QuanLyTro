@@ -97,6 +97,7 @@ exports.addFacilityToRoom = async (req, res, next) => {
 };
 
 exports.updateFacilityInRoom = async (req, res, next) => {
+  let sessions = [];
   try {
     const id = req.params.id;
     const roomId = req.body.roomId;
@@ -106,23 +107,10 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     // isAdjustQuantity = false When you want to destroy that facility in room forever.
     // And not adjust quantity in warehouse
 
-    if (!isEmpty(roomId) || !isEmpty(facilityId)) {
-      return res.status(406).json({
-        success: false,
-        error: "Only can change quantity"
-      });
-    }
-
-    const [roomFacility, old] = await Promise.all([
-      roomFacilities.findOne({
-        _id: id,
-        isDeleted: false
-      }),
-      roomFacilities.findOne({
-        ...pick(req.body, "roomId", "facilityId"),
-        isDeleted: false
-      })
-    ]);
+    const roomFacility = await roomFacilities.findOne({
+      _id: id,
+      isDeleted: false
+    });
 
     if (isEmpty(roomFacility)) {
       return res.status(404).json({
@@ -131,33 +119,32 @@ exports.updateFacilityInRoom = async (req, res, next) => {
       });
     }
 
-    // Check exist
-    if (!isEmpty(old)) {
-      return res.status(409).json({
-        success: false,
-        error: "You have added this facility to this room"
-      });
-    }
-
     //
     // Transaction
     //
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
     let transactionResult;
     if (isAdjustQuantity === true) {
       transactionResult = await facilitiesController.adjustQuantity({
         quantity: roomFacility.quantity - quantity,
-        facilityId: facilityId
+        facilityId: facilityId,
+        session: session
       });
     }
 
     // Check is transaction failed
     if (!isEmpty(transactionResult) && transactionResult.success === false) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: transactionResult.error
       });
     }
 
+    // Update
     const updated = await roomFacilities.findOneAndUpdate(
       { _id: id, isDeleted: false },
       { ...pick(req.body, "quantity") },
@@ -165,12 +152,15 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     );
 
     if (isEmpty(updated)) {
+      await abortTransactions(sessions);
       return res.status(404).json({
         success: false,
-        error: "Deleted failed"
+        error: "Updated failed"
       });
     }
 
+    // Done
+    await commitTransactions(sessions);
     return res.status(200).json({
       success: true,
       data: updated

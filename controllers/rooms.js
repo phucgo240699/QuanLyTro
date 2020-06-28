@@ -121,22 +121,12 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
+  let sessions = [];
   try {
-    if (!isEmpty(req.body.name)) {
-      const [needToUpdate, olds] = await Promise.all([
-        Rooms.findOne({ _id: req.params.id, isDeleted: false }),
-        Rooms.find({ name: req.body.name, isDeleted: false })
-      ]);
-
-      if (needToUpdate.name !== req.body.name) {
-        if (olds.length >= 1) {
-          return res.status(409).json({
-            success: false,
-            error: "This name is already exist"
-          });
-        }
-      }
-    }
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
 
     const updatedRoom = await Rooms.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
@@ -152,7 +142,7 @@ exports.update = async (req, res, next) => {
           "amountOfVehicles"
         )
       },
-      { new: true }
+      { session, new: true }
     );
 
     if (isEmpty(updatedRoom)) {
@@ -162,23 +152,32 @@ exports.update = async (req, res, next) => {
       });
     }
 
-    // // Check duplicate
-    // if (!isEmpty(req.body.name)) {
-    //   const oldRooms = await Rooms.find({
-    //     name: req.body.name,
-    //     isDeleted: false
-    //   });
+    // Check exist
+    if (req.body.name) {
+      let isChangeName = true;
+      const [rooms, beforeUpdated] = await Promise.all([
+        Rooms.find({ name: req.body.name, isDeleted: false }),
+        Rooms.findOne({
+          _id: req.params.id,
+          isDeleted: false
+        })
+      ]);
 
-    //   if (oldRooms.length >= 1) {
-    //     await abortTransactions(sessions);
-    //     return res.status(409).json({
-    //       success: false,
-    //       error: "Name is already exist"
-    //     });
-    //   }
-    // }
+      if (beforeUpdated.name === updatedRoom.name) {
+        isChangeName = false;
+      }
 
-    // await commitTransactions(sessions);
+      if (rooms.length > 0 && isChangeName) {
+        await abortTransactions(sessions);
+        return res.status(409).json({
+          success: false,
+          error: "This name is already exist"
+        });
+      }
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,

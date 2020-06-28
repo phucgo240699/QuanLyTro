@@ -22,6 +22,7 @@ exports.create = async (req, res, next) => {
     session.startTransaction();
     sessions.push(session);
 
+    // Create
     const facility = await model("facilities").create(
       [
         {
@@ -126,22 +127,12 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
+  let sessions = [];
   try {
-    if (!isEmpty(req.body.name)) {
-      const [needToUpdate, olds] = await Promise.all([
-        Facilities.findOne({ _id: req.params.id, isDeleted: false }),
-        Facilities.find({ name: req.body.name, isDeleted: false })
-      ]);
-
-      if (needToUpdate.name !== req.body.name) {
-        if (olds.length >= 1) {
-          return res.status(409).json({
-            success: false,
-            error: "This name is already exist"
-          });
-        }
-      }
-    }
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
 
     const updated = await Facilities.findOneAndUpdate(
       {
@@ -151,15 +142,43 @@ exports.update = async (req, res, next) => {
       {
         ...pick(req.body, "name", "price", "quantity", "description")
       },
-      { new: true }
+      { session, new: true }
     );
 
     if (isEmpty(updated)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Updated failed"
       });
     }
+
+    // Check exist
+    if (req.body.name) {
+      let isChangeName = true;
+      const [facilities, beforeUpdated] = await Promise.all([
+        Facilities.find({ name: req.body.name, isDeleted: false }),
+        Facilities.findOne({
+          _id: req.params.id,
+          isDeleted: false
+        })
+      ]);
+
+      if (beforeUpdated.name === updated.name) {
+        isChangeName = false;
+      }
+
+      if (facilities.length > 0 && isChangeName) {
+        await abortTransactions(sessions);
+        return res.status(409).json({
+          success: false,
+          error: "This name is already exist"
+        });
+      }
+    }
+
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(200).json({
       success: true,
