@@ -25,38 +25,6 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    // const [oldContract, customersInRoom, room] = await Promise.all([
-    //   Contracts.findOne({
-    //     $or: [{ roomId: roomId }, { customerId: customerId }],
-    //     isDeleted: false
-    //   }),
-    //   model("customers").find({ roomId: roomId, isDeleted: false }),
-    //   model("rooms").find({ _id: roomId, isDeleted: false })
-    // ]);
-
-    // // Check exist
-    // if (!isEmpty(oldContract)) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: "You have created a contract for this customer in this room"
-    //   });
-    // }
-
-    // // Check full
-    // if (!isEmpty(customersInRoom) && !isEmpty(room)) {
-    //   if (room.capacity === customersInRoom.length) {
-    //     return res.status(406).json({
-    //       success: false,
-    //       error: "This room is full"
-    //     });
-    //   } else if (room.capacity < customersInRoom.length) {
-    //     return res.status(406).json({
-    //       success: false,
-    //       error: "Amount of customers is lager than capacity in this room"
-    //     });
-    //   }
-    // }
-
     // Transactions
     let session = await startSession();
     session.startTransaction();
@@ -87,38 +55,30 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const [oldContracts, customersInRoom, room] = await Promise.all([
+    const [oldContracts, room] = await Promise.all([
       Contracts.find({
         $or: [{ roomId: roomId }, { customerId: customerId }],
         isDeleted: false
       }),
-      model("customers").find({ roomId: roomId, isDeleted: false }),
       model("rooms").find({ _id: roomId, isDeleted: false })
     ]);
 
     // Check exist
     if (oldContracts.length > 0) {
+      await abortTransactions(sessions);
       return res.status(409).json({
         success: false,
         error: "You have created a contract for this customer in this room"
       });
     }
 
-    // Check full
-    if (!isEmpty(customersInRoom) && !isEmpty(room)) {
-      if (room.capacity === customersInRoom.length) {
-        await abortTransactions(sessions);
-        return res.status(406).json({
-          success: false,
-          error: "This room is full"
-        });
-      } else if (room.capacity < customersInRoom.length) {
-        await abortTransactions(sessions);
-        return res.status(406).json({
-          success: false,
-          error: "Amount of customers is lager than capacity in this room"
-        });
-      }
+    // Check room is not empty
+    if (room.slotStatus !== "empty") {
+      await abortTransactions(sessions);
+      return res.status(406).json({
+        success: false,
+        error: "This room is not empty"
+      });
     }
 
     // Done
@@ -200,21 +160,20 @@ exports.getAll = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const deleted = await Contracts.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        isDeleted: false
-      },
-      { isDeleted: true },
-      { new: true }
-    );
+    const deleted = await Contracts.findOne({
+      _id: req.params.id,
+      isDeleted: false
+    });
 
     if (isEmpty(deleted)) {
-      return res.status(406).json({
+      return res.status(404).json({
         success: false,
-        error: "Deleted failed"
+        error: "Not found"
       });
     }
+
+    deleted.isDeleted = true;
+    await deleted.save();
 
     return res.status(200).json({
       success: true,

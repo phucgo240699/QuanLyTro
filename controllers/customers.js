@@ -54,7 +54,7 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const [oldCustomers, room, customersInRoom] = await Promise.all([
+    const [oldCustomers, room, customersInRoom, contractOfThisRoom] = await Promise.all([
       Customers.find({
         identityCard: identityCard,
         isDeleted: false
@@ -63,7 +63,8 @@ exports.create = async (req, res, next) => {
         _id: roomId,
         isDeleted: false
       }),
-      Customers.find({ roomId: roomId, isDeleted: false }) // not include the newest customer you just create
+      Customers.find({ roomId: roomId, isDeleted: false }), // not include the newest customer you just create
+      model("contracts").findOne({ roomId: roomId, isDeleted: false })
     ]);
 
     // Check exist
@@ -75,6 +76,15 @@ exports.create = async (req, res, next) => {
       });
     }
 
+    // Check not create contract yet
+    if (room.slotStatus == "empty" && isEmpty(contractOfThisRoom)) {
+      await abortTransactions(sessions);
+      return res.status(406).json({
+        success: false,
+        error: "You must create contract first"
+      });
+    }
+
     // Check room not found
     if (isEmpty(room)) {
       await abortTransactions(sessions);
@@ -83,6 +93,7 @@ exports.create = async (req, res, next) => {
         error: "Room not found"
       });
     }
+
     if (Number(customersInRoom.length) + 1 < Number(room.capacity)) {
       room.slotStatus = "available";
     } else if (Number(customersInRoom.length) + 1 === Number(room.capacity)) {
