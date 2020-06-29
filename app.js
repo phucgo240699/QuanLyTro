@@ -11,7 +11,9 @@ const User = require("./model/users");
 app.use(bodyParser.json());
 
 const { authenticateToken } = require("./services/authenticateToken");
+const { checkToken } = require("./services/checkToken");
 
+app.get("/checkToken", checkToken);
 app.use("/users", require("./routes/auth"));
 app.use("/facilities", authenticateToken, require("./routes/facilities"));
 app.use("/rooms", authenticateToken, require("./routes/rooms"));
