@@ -63,19 +63,25 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    if (isAdmin === false && isEmpty(req.body.owner)) {
+    req.body.password = hashedPassword;
+
+    let newUser;
+    if (isAdmin === false && isEmpty(owner)) {
       return res.status(406).json({
         success: false,
         error: "Account for customer must have owner property"
       });
     }
 
-    req.body.password = hashedPassword;
-
-    const newUser = await Users.create({
-      ...pick(req.body, "username", "password", "isAdmin", "owner")
-    });
-
+    if (isAdmin === true) {
+      newUser = await Users.create({
+        ...pick(req.body, "username", "password", "isAdmin")
+      });
+    } else {
+      newUser = await Users.create({
+        ...pick(req.body, "username", "password", "isAdmin", "owner")
+      });
+    }
     return res.status(200).json({
       success: true,
       data: newUser
