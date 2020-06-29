@@ -69,7 +69,7 @@ exports.create = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      data: newRoom
+      data: newRoom[0]
     });
   } catch (error) {
     await abortTransactions(sessions);

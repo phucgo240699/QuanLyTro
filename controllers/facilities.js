@@ -58,7 +58,7 @@ exports.create = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      data: facility
+      data: facility[0]
     });
   } catch (error) {
     await abortTransactions(sessions);

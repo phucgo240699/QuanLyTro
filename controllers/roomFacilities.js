@@ -86,7 +86,7 @@ exports.addFacilityToRoom = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      data: newDoc
+      data: newDoc[0]
     });
   } catch (error) {
     return res.status(500).json({
