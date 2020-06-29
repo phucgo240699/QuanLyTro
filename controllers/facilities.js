@@ -109,11 +109,10 @@ exports.getAll = async (req, res, next) => {
       );
     } else {
       // Paginate
-      facilities = await Facilities.aggregate()
-        .match({ isDeleted: false })
+      facilities = await Facilities.find({ isDeleted: false })
+        .select("name price quantity")
         .skip(limit * (page - 1))
-        .limit(limit)
-        .project("name price quantity");
+        .limit(limit);
     }
 
     return res.status(200).json({

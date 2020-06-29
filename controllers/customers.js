@@ -140,8 +140,7 @@ exports.getAll = async (req, res, next) => {
         .populate("roomId", "name");
     } else {
       // Paginate
-      customers = await Customers.aggregate()
-        .find({ isDeleted: false })
+      customers = await Customers.find({ isDeleted: false })
         .select("name identityCard phoneNumber roomId")
         .populate("roomId", "name")
         .skip(limit * (page - 1))
