@@ -11,12 +11,14 @@ exports.create = async (req, res, next) => {
     const dueDate = req.body.dueDate;
     const deposit = req.body.deposit;
     const entryDate = req.body.entryDate;
+    const latestInvoiceDate = req.body.latestInvoiceDate;
 
     if (
       isEmpty(customerId) ||
       isEmpty(roomId) ||
       isEmpty(dueDate) ||
       isEmpty(entryDate) ||
+      isEmpty(latestInvoiceDate) ||
       !deposit
     ) {
       return res.status(406).json({
@@ -40,6 +42,7 @@ exports.create = async (req, res, next) => {
             "dueDate",
             "deposit",
             "entryDate",
+            "latestInvoiceDate",
             "descriptions"
           )
         }

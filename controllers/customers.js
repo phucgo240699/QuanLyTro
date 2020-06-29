@@ -135,14 +135,17 @@ exports.getAll = async (req, res, next) => {
       // Not paginate if request doesn't has one of these param: page, limit
       customers = await Customers.find({
         isDeleted: false
-      }).select("name identityCard phoneNumber birthday");
+      })
+        .select("name identityCard phoneNumber roomId")
+        .populate("roomId", "name");
     } else {
       // Paginate
       customers = await Customers.aggregate()
-        .match({ isDeleted: false })
+        .find({ isDeleted: false })
+        .select("name identityCard phoneNumber roomId")
+        .populate("roomId", "name")
         .skip(limit * (page - 1))
-        .limit(limit)
-        .project("name identityCard phoneNumber birthday");
+        .limit(limit);
     }
 
     if (isEmpty(customers)) {

@@ -86,6 +86,10 @@ exports.create = async (req, res, next) => {
       (parkingPrice ? parkingPrice : 0) +
       (cleanPrice ? cleanPrice : 0);
 
+    // Set up date create invoice
+    now.setDate(latestInvoiceDate.getDate());
+    req.body.createdAt = now;
+    req.body.updatedAt = now;
     // Create invoice
     const newDoc = await Invoices.create({
       ...pick(
@@ -100,7 +104,9 @@ exports.create = async (req, res, next) => {
         "parkingPrice",
         "cleanPrice",
         "totalPrice",
-        "roomId"
+        "roomId",
+        "createdAt",
+        "updatedAt"
       )
     });
 
@@ -136,4 +142,90 @@ exports.create = async (req, res, next) => {
     month: time.getMonth() + 1,
     year: time.getFullYear()
   });
+};
+
+exports.get = async (req, res) => {
+  try {
+    const invoice = await Invoices.findOne({ _id: req.params.id, isDeleted: false });
+
+    if (isEmpty(invoice)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: invoice
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.getAll = async (req, res, next) => {
+  const page = Number(req.query.page); // page index
+  const limit = Number(req.query.limit); // limit docs per page
+
+  try {
+    let invoices;
+
+    if (!page || !limit) {
+      // Not paginate if request doesn't has one of these param: page, limit
+      invoices = await Invoices.find({ isDeleted: false })
+        .select("roomId totalPrice")
+        .populate("roomId", "name");
+    } else {
+      // Paginate
+      invoices = await Invoices.aggregate()
+        .find({ isDeleted: false })
+        .select("roomId totalPrice")
+        .populate("roomId", "name")
+        .skip(limit * (page - 1))
+        .limit(limit);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: invoices
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.delete = async (req, res) => {
+  try {
+    const deleted = await Invoices.findOne({
+      _id: req.params.id,
+      isDeleted: false
+    });
+
+    if (isEmpty(deleted)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    deleted.isDeleted = true;
+    await deleted.save();
+
+    return res.status(200).json({
+      success: true,
+      data: deleted
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 };
