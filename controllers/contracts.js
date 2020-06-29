@@ -1,8 +1,10 @@
 const Contracts = require("../model/contracts");
 const { isEmpty, pick } = require("lodash");
-const { model } = require("../model/contracts");
+const { model, startSession } = require("mongoose");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 
 exports.create = async (req, res, next) => {
+  let sessions = [];
   try {
     const customerId = req.body.customerId;
     const roomId = req.body.roomId;
@@ -23,8 +25,70 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    const [oldContract, customersInRoom, room] = await Promise.all([
-      Contracts.findOne({
+    // const [oldContract, customersInRoom, room] = await Promise.all([
+    //   Contracts.findOne({
+    //     $or: [{ roomId: roomId }, { customerId: customerId }],
+    //     isDeleted: false
+    //   }),
+    //   model("customers").find({ roomId: roomId, isDeleted: false }),
+    //   model("rooms").find({ _id: roomId, isDeleted: false })
+    // ]);
+
+    // // Check exist
+    // if (!isEmpty(oldContract)) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: "You have created a contract for this customer in this room"
+    //   });
+    // }
+
+    // // Check full
+    // if (!isEmpty(customersInRoom) && !isEmpty(room)) {
+    //   if (room.capacity === customersInRoom.length) {
+    //     return res.status(406).json({
+    //       success: false,
+    //       error: "This room is full"
+    //     });
+    //   } else if (room.capacity < customersInRoom.length) {
+    //     return res.status(406).json({
+    //       success: false,
+    //       error: "Amount of customers is lager than capacity in this room"
+    //     });
+    //   }
+    // }
+
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
+    const newContract = await Contracts.create(
+      [
+        {
+          ...pick(
+            req.body,
+            "customerId",
+            "roomId",
+            "dueDate",
+            "deposit",
+            "entryDate",
+            "descriptions"
+          )
+        }
+      ],
+      { session: session }
+    );
+
+    if (isEmpty(newContract)) {
+      await abortTransactions(sessions);
+      return res.status(406).json({
+        success: false,
+        error: "Created failed"
+      });
+    }
+
+    const [oldContracts, customersInRoom, room] = await Promise.all([
+      Contracts.find({
         $or: [{ roomId: roomId }, { customerId: customerId }],
         isDeleted: false
       }),
@@ -33,7 +97,7 @@ exports.create = async (req, res, next) => {
     ]);
 
     // Check exist
-    if (!isEmpty(oldContract)) {
+    if (oldContracts.length > 0) {
       return res.status(409).json({
         success: false,
         error: "You have created a contract for this customer in this room"
@@ -43,41 +107,29 @@ exports.create = async (req, res, next) => {
     // Check full
     if (!isEmpty(customersInRoom) && !isEmpty(room)) {
       if (room.capacity === customersInRoom.length) {
+        await abortTransactions(sessions);
         return res.status(406).json({
           success: false,
           error: "This room is full"
         });
       } else if (room.capacity < customersInRoom.length) {
+        await abortTransactions(sessions);
         return res.status(406).json({
           success: false,
           error: "Amount of customers is lager than capacity in this room"
         });
       }
     }
-    const newContract = await Contracts.create({
-      ...pick(
-        req.body,
-        "customerId",
-        "roomId",
-        "dueDate",
-        "deposit",
-        "entryDate",
-        "descriptions"
-      )
-    });
 
-    if (isEmpty(newContract)) {
-      return res.status(406).json({
-        success: false,
-        error: "Created failed"
-      });
-    }
+    // Done
+    await commitTransactions(sessions);
 
     return res.status(201).json({
       success: true,
       data: newContract
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       error: error.message

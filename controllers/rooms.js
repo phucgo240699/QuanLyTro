@@ -44,6 +44,7 @@ exports.create = async (req, res, next) => {
     );
 
     if (isEmpty(newRoom)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Created failed"
@@ -71,6 +72,7 @@ exports.create = async (req, res, next) => {
       data: newRoom
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -146,6 +148,7 @@ exports.update = async (req, res, next) => {
     );
 
     if (isEmpty(updatedRoom)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Updated failed"
@@ -184,6 +187,7 @@ exports.update = async (req, res, next) => {
       data: updatedRoom
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({ success: false, error: error.message });
   }
 };

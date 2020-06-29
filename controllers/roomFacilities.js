@@ -107,18 +107,6 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     // isAdjustQuantity = false When you want to destroy that facility in room forever.
     // And not adjust quantity in warehouse
 
-    const roomFacility = await roomFacilities.findOne({
-      _id: id,
-      isDeleted: false
-    });
-
-    if (isEmpty(roomFacility)) {
-      return res.status(404).json({
-        success: false,
-        error: "Not found"
-      });
-    }
-
     //
     // Transaction
     //
@@ -148,7 +136,7 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     const updated = await roomFacilities.findOneAndUpdate(
       { _id: id, isDeleted: false },
       { ...pick(req.body, "quantity") },
-      { new: true }
+      { session, new: true }
     );
 
     if (isEmpty(updated)) {
@@ -166,6 +154,7 @@ exports.updateFacilityInRoom = async (req, res, next) => {
       data: updated
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -215,6 +204,7 @@ exports.getAllFacilitiesInRoom = async (req, res, next) => {
 };
 
 exports.deleteFacilityInRoom = async (req, res, next) => {
+  let sessions = [];
   try {
     const id = req.params.id;
     const isAdjustQuantity = req.body.isAdjustQuantity;
@@ -241,16 +231,22 @@ exports.deleteFacilityInRoom = async (req, res, next) => {
     //
     // Transaction
     //
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
     let transactionResult;
     if (isAdjustQuantity === true) {
       transactionResult = await facilitiesController.adjustQuantity({
         quantity: doc.quantity,
-        facilityId: doc.facilityId
+        facilityId: doc.facilityId,
+        session: session
       });
     }
 
     // Check is transaction failed
     if (!isEmpty(transactionResult) && transactionResult.success === false) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: transactionResult.error
@@ -260,11 +256,14 @@ exports.deleteFacilityInRoom = async (req, res, next) => {
     doc.isDeleted = true;
     await doc.save();
 
+    // Done
+    await commitTransactions(sessions);
     return res.status(200).json({
       success: true,
       data: doc
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       data: error.message

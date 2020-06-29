@@ -33,6 +33,7 @@ exports.create = async (req, res, next) => {
     );
 
     if (isEmpty(facility)) {
+      await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
         error: "Created failed"
@@ -60,6 +61,7 @@ exports.create = async (req, res, next) => {
       data: facility
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       error: error.message

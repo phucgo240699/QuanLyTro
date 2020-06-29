@@ -105,6 +105,7 @@ exports.create = async (req, res, next) => {
       data: newCustomer
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -283,6 +284,7 @@ exports.update = async (req, res, next) => {
       data: updated
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       error: error.message
