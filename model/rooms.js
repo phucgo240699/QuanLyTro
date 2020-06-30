@@ -11,7 +11,8 @@ const Rooms = new Schema(
     },
     floor: {
       type: Number,
-      index: true
+      index: true,
+      required: true
     },
     price: {
       type: Number,
