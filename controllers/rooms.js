@@ -12,8 +12,9 @@ exports.create = async (req, res, next) => {
     const name = req.body.name;
     const price = req.body.price;
     const capacity = req.body.capacity;
+    const floor = req.body.floor;
 
-    if (isEmpty(name) || !price || !capacity) {
+    if (isEmpty(name) || !price || !capacity || !floor) {
       return res.status(406).json({
         success: false,
         error: "Not enough property"
