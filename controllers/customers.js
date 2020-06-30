@@ -134,13 +134,17 @@ exports.getAll = async (req, res, next) => {
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
       customers = await Customers.find({
+        ...pick(req.body, "roomId"),
         isDeleted: false
       })
         .select("name identityCard phoneNumber roomId")
         .populate("roomId", "name");
     } else {
       // Paginate
-      customers = await Customers.find({ isDeleted: false })
+      customers = await Customers.find({
+        ...pick(req.body, "roomId"),
+        isDeleted: false
+      })
         .select("name identityCard phoneNumber roomId")
         .populate("roomId", "name")
         .skip(limit * (page - 1))
