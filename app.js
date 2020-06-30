@@ -22,6 +22,7 @@ app.use("/customers", authenticateToken, require("./routes/customers"));
 app.use("/contracts", authenticateToken, require("./routes/contracts"));
 app.use("/invoices", authenticateToken, require("./routes/invoices"));
 app.use("/params", authenticateToken, require("./routes/params"));
+app.use("/reports", authenticateToken, require("./routes/reports"));
 
 app.get("/", authenticateToken, (req, res) => {
   res.send("<h1> Hello world</h1>");
