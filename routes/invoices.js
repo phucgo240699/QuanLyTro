@@ -2,5 +2,8 @@ const router = require("express").Router();
 
 const invoiceController = require("../controllers/invoices");
 router.post("/", invoiceController.create);
+router.get("/", invoiceController.getAll);
+router.get("/:id", invoiceController.get);
+router.delete("/:id", invoiceController.delete);
 
 module.exports = router;
