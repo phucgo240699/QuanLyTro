@@ -106,11 +106,11 @@ exports.getAll = async (req, res, next) => {
 
     if (!page || !limit) {
       rooms = await Rooms.find({ isDeleted: false }).select(
-        "name price name price square capacity amountOfVehicles slotStatus"
+        "name price name price square capacity amountOfVehicles slotStatus floor"
       );
     } else {
       rooms = await Rooms.find({ isDeleted: false })
-        .select("name price square capacity amountOfVehicles slotStatus")
+        .select("name price square capacity amountOfVehicles slotStatus floor")
         .skip(limit * (page - 1))
         .limit(limit);
     }
