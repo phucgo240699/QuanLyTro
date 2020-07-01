@@ -72,10 +72,10 @@ exports.getAll = async (req, res, next) => {
     let reports;
 
     if (!page || !limit) {
-      reports = await Reports.find(query).select("name status");
+      reports = await Reports.find(query).select("name status description");
     } else {
       reports = await Reports.find(query)
-        .select("name status")
+        .select("name status description")
         .skip(limit * (page - 1))
         .limit(limit);
     }
