@@ -146,7 +146,13 @@ exports.create = async (req, res, next) => {
 
 exports.get = async (req, res) => {
   try {
-    const invoice = await Invoices.findOne({ _id: req.params.id, isDeleted: false });
+    let query;
+    if (req.user.isAdmin === true) {
+      query = { _id: req.params.id, isDeleted: false };
+    } else {
+      query = { _id: req.params.id, isDeleted: false, user: req.user };
+    }
+    const invoice = await Invoices.findOne(query);
 
     if (isEmpty(invoice)) {
       return res.status(404).json({
@@ -168,21 +174,28 @@ exports.get = async (req, res) => {
 };
 
 exports.getAll = async (req, res, next) => {
-  const page = Number(req.query.page); // page index
-  const limit = Number(req.query.limit); // limit docs per page
-
   try {
     let invoices;
 
+    const page = Number(req.query.page); // page index
+    const limit = Number(req.query.limit); // limit docs per page
+
+    let query;
+    if (req.user.isAdmin === true) {
+      query = { isDeleted: false };
+    } else {
+      query = { isDeleted: false, user: req.user };
+    }
+
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
-      invoices = await Invoices.find({ isDeleted: false })
+      invoices = await Invoices.find(query)
         .select("roomId totalPrice")
         .populate("roomId", "name");
     } else {
       // Paginate
       invoices = await Invoices.aggregate()
-        .find({ isDeleted: false })
+        .find(query)
         .select("roomId totalPrice")
         .populate("roomId", "name")
         .skip(limit * (page - 1))

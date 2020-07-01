@@ -17,6 +17,18 @@ const Reports = new Schema(
       index: true,
       required: true,
       default: "processing"
+    },
+    isDeleted: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true
+    },
+    user: {
+      type: mongoose.Types.ObjectId,
+      ref: "users",
+      index: true,
+      required: true
     }
   },
   {

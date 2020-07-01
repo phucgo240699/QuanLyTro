@@ -12,7 +12,10 @@ exports.create = async (req, res) => {
       });
     }
 
-    const newReport = await Reports.create({ ...pick(req.body, "name", "description") });
+    const newReport = await Reports.create({
+      ...pick(req.body, "name", "description"),
+      user: req.user
+    });
 
     if (isEmpty(newReport)) {
       return res.status(406).json({
@@ -29,7 +32,11 @@ exports.create = async (req, res) => {
 
 exports.get = async (req, res, next) => {
   try {
-    const report = await Reports.findOne({ _id: req.params.id, isDeleted: false });
+    const report = await Reports.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+      user: req.user
+    });
 
     if (isEmpty(report)) {
       return res.status(404).json({
@@ -51,15 +58,19 @@ exports.getAll = async (req, res, next) => {
   try {
     const page = Number(req.query.page); // page index
     const limit = Number(req.query.limit); // limit docs per page
+    let query;
+    if (req.user.isAdmin === true) {
+      query = { isDeleted: false };
+    } else {
+      query = { user: req.user, isDeleted: false };
+    }
 
     let reports;
 
     if (!page || !limit) {
-      reports = await Reports.find({ isDeleted: false }).select(
-        "name description status"
-      );
+      reports = await Reports.find(query).select("name description status");
     } else {
-      reports = await Reports.find({ isDeleted: false })
+      reports = await Reports.find(query)
         .select("name description status")
         .skip(limit * (page - 1))
         .limit(limit);

@@ -1,9 +1,12 @@
 const router = require("express").Router();
 
 const invoiceController = require("../controllers/invoices");
-router.post("/", invoiceController.create);
+
+const { checkIsAdmin } = require("../services/checkAdmin");
+
+router.post("/", checkIsAdmin, invoiceController.create);
 router.get("/", invoiceController.getAll);
 router.get("/:id", invoiceController.get);
-router.delete("/:id", invoiceController.delete);
+router.delete("/:id", checkIsAdmin, invoiceController.delete);
 
 module.exports = router;
