@@ -24,8 +24,8 @@ const Reports = new Schema(
       default: false,
       index: true
     },
-    user: {
-      type: mongoose.Types.ObjectId,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
       ref: "users",
       index: true,
       required: true

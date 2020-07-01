@@ -14,7 +14,7 @@ exports.create = async (req, res) => {
 
     const newReport = await Reports.create({
       ...pick(req.body, "name", "description"),
-      user: req.user
+      userId: req.user._id
     });
 
     if (isEmpty(newReport)) {
@@ -32,11 +32,14 @@ exports.create = async (req, res) => {
 
 exports.get = async (req, res, next) => {
   try {
-    const report = await Reports.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-      user: req.user
-    });
+    let query;
+    if (req.user.isAdmin === true) {
+      query = { _id: req.params.id, isDeleted: false };
+    } else {
+      query = { _id: req.params.id, userId: req.user._id, isDeleted: false };
+    }
+
+    const report = await Reports.findOne(query);
 
     if (isEmpty(report)) {
       return res.status(404).json({
@@ -58,20 +61,21 @@ exports.getAll = async (req, res, next) => {
   try {
     const page = Number(req.query.page); // page index
     const limit = Number(req.query.limit); // limit docs per page
+
     let query;
     if (req.user.isAdmin === true) {
       query = { isDeleted: false };
     } else {
-      query = { user: req.user, isDeleted: false };
+      query = { userId: req.user._id, isDeleted: false };
     }
 
     let reports;
 
     if (!page || !limit) {
-      reports = await Reports.find(query).select("name description status");
+      reports = await Reports.find(query).select("name status");
     } else {
       reports = await Reports.find(query)
-        .select("name description status")
+        .select("name status")
         .skip(limit * (page - 1))
         .limit(limit);
     }
@@ -85,27 +89,21 @@ exports.getAll = async (req, res, next) => {
 exports.updateStatus = async (req, res) => {
   try {
     const status = req.body.status;
-    if (req.user.isAdmin === true) {
-      const updated = await Reports.findOneAndUpdate(
-        { _id: req.params.id, isDeleted: false },
-        { status: status },
-        { new: true }
-      );
 
-      if (isEmpty(updated)) {
-        return res.status(406).json({
-          success: false,
-          error: "Created failed"
-        });
-      }
+    const updated = await Reports.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { status: status },
+      { new: true }
+    );
 
-      return res.status(200).json({ success: true, data: updated });
-    } else {
+    if (isEmpty(updated)) {
       return res.status(406).json({
         success: false,
-        error: "You don't have permission"
+        error: "Created failed"
       });
     }
+
+    return res.status(200).json({ success: true, data: updated });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
