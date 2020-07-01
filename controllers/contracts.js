@@ -2,23 +2,26 @@ const Contracts = require("../model/contracts");
 const { isEmpty, pick } = require("lodash");
 const { model, startSession } = require("mongoose");
 const { commitTransactions, abortTransactions } = require("../services/transactions");
+const { customerController } = require("./customers");
 
 exports.create = async (req, res, next) => {
   let sessions = [];
   try {
-    const customerId = req.body.customerId;
     const roomId = req.body.roomId;
+    const identityCard = req.body.identityCard;
+    const name = req.body.name;
     const dueDate = req.body.dueDate;
     const deposit = req.body.deposit;
     const entryDate = req.body.entryDate;
     const latestInvoiceDate = req.body.latestInvoiceDate;
+    const isPayAtEndMonth = req.body.isPayAtEndMonth;
 
     if (
-      isEmpty(customerId) ||
       isEmpty(roomId) ||
+      isEmpty(identityCard) ||
+      isEmpty(name) ||
       isEmpty(dueDate) ||
       isEmpty(entryDate) ||
-      isEmpty(latestInvoiceDate) ||
       !deposit
     ) {
       return res.status(406).json({
@@ -27,11 +30,65 @@ exports.create = async (req, res, next) => {
       });
     }
 
+    // Check format date
+    if (dueDate instanceof Date === false || entryDate instanceof Date === false) {
+      return res.status(406).json({
+        success: false,
+        error: "Incorrect formate date"
+      });
+    }
+
+    // Check latestInvoiceDate
+    if (entryDate < dueDate) {
+      return res.status(406).json({
+        success: false,
+        error: "Invalid time. entryDate must be less than dueDate"
+      });
+    }
+
     // Transactions
     let session = await startSession();
     session.startTransaction();
     sessions.push(session);
 
+    // Create Host for Contract
+    const { success, data, error } = await customerController.createHost({
+      identityCard: identityCard,
+      name: name,
+      roomId: roomId,
+      session: session
+    });
+
+    if (success === false) {
+      await abortTransactions(sessions);
+      return res.status(500).json({
+        success: false,
+        error: error
+      });
+    }
+
+    // Prepare data for Create Contract
+    const newHostCustomer = data;
+    req.body.customerId = newHostCustomer._id;
+
+    req.body.latestInvoiceDate = entryDate;
+    if (isPayAtEndMonth === true) {
+      let newMonth;
+      let newYear;
+
+      if (entryDate.getMonth() >= 11) {
+        newMonth = 0;
+        newYear = entryDate.getFullYear() + 1;
+      } else {
+        newMonth = entryDate.getMonth() + 1;
+        newYear = entryDate.getFullYear();
+      }
+
+      req.body.latestInvoiceDate.setMonth(newMonth);
+      req.body.latestInvoiceDate.setYear(newYear);
+    }
+
+    // Create Contract
     const newContract = await Contracts.create(
       [
         {

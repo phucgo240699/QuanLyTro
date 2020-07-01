@@ -3,6 +3,72 @@ const { isEmpty, pick } = require("lodash");
 const { model, startSession } = require("mongoose");
 const { commitTransactions, abortTransactions } = require("../services/transactions");
 
+exports.createHost = async ({ identityCard, name, roomId, session }) => {
+  try {
+    // Check not enough property
+    if (isEmpty(identityCard) || isEmpty(name) || isEmpty(roomId)) {
+      return {
+        success: false,
+        error: "Not enough property"
+      };
+    }
+
+    // Create customer
+    const newCustomer = await Customers.create(
+      [
+        {
+          ...pick(
+            req.body,
+            "name",
+            "email",
+            "phoneNumber",
+            "birthday",
+            "identityCard",
+            "identityCardFront",
+            "identityCardBack",
+            "province",
+            "district",
+            "ward",
+            "address",
+            "roomId"
+          )
+        }
+      ],
+      { session: session }
+    );
+
+    if (isEmpty(newCustomer)) {
+      return {
+        success: false,
+        error: "Created failed"
+      };
+    }
+
+    // Check exist
+    const oldCustomers = await Customers.find({
+      identityCard: identityCard,
+      isDeleted: false
+    });
+
+    if (oldCustomers.length > 0) {
+      return {
+        success: false,
+        error: "This identity card is already exist"
+      };
+    }
+
+    return {
+      success: true,
+      data: newCustomer[0]
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 exports.create = async (req, res, next) => {
   let sessions = [];
   try {
@@ -77,7 +143,7 @@ exports.create = async (req, res, next) => {
     }
 
     // Check not create contract yet
-    if (room.slotStatus == "empty" && isEmpty(contractOfThisRoom)) {
+    if (!isEmpty(roomId) && room.slotStatus === "empty" && isEmpty(contractOfThisRoom)) {
       await abortTransactions(sessions);
       return res.status(406).json({
         success: false,

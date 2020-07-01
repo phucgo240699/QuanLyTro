@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { isEmpty, pick } = require("lodash");
+const { model, startSession } = require("mongoose");
+const { commitTransactions, abortTransactions } = require("../services/transactions");
 
 const Users = require("../model/users");
 
@@ -39,6 +41,7 @@ exports.login = async (req, res, next) => {
 
 exports.register = async (req, res, next) => {
   try {
+    let sessions = [];
     const username = req.body.username;
     const password = req.body.password;
     const isAdmin = req.body.isAdmin;
@@ -51,42 +54,84 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    const [alreadyUser, hashedPassword] = await Promise.all([
-      Users.findOne({ username: req.body.username, isDeleted: false }),
-      bcrypt.hashSync(req.body.password, 10)
-    ]);
-
-    if (alreadyUser) {
-      return res.status(409).json({
-        success: false,
-        error: "Username is already exist"
-      });
-    }
-
-    req.body.password = hashedPassword;
-
-    let newUser;
-    if (isAdmin === false && isEmpty(owner)) {
+    if (isAdmin !== true && isEmpty(owner)) {
       return res.status(406).json({
         success: false,
         error: "Account for customer must have owner property"
       });
     }
 
+    const hashedPassword = await bcrypt.hashSync(req.body.password, 10);
+
+    //Users.findOne({ username: req.body.username, isDeleted: false }),
+    // if (alreadyUser) {
+    //   return res.status(409).json({
+    //     success: false,
+    //     error: "Username is already exist"
+    //   });
+    // }
+
+    req.body.password = hashedPassword;
+
+    // Transactions
+    let session = await startSession();
+    session.startTransaction();
+    sessions.push(session);
+
+    let newUser;
+    // Create
     if (isAdmin === true) {
-      newUser = await Users.create({
-        ...pick(req.body, "username", "password", "isAdmin")
-      });
+      newUser = await Users.create(
+        [
+          {
+            ...pick(req.body, "username", "password", "isAdmin")
+          }
+        ],
+        { session: session }
+      );
     } else {
-      newUser = await Users.create({
-        ...pick(req.body, "username", "password", "isAdmin", "owner")
+      newUser = await Users.create(
+        [
+          {
+            ...pick(req.body, "username", "password", "isAdmin", "owner")
+          }
+        ],
+        { session: session }
+      );
+    }
+
+    // Check create failed
+    if (isEmpty(newUser)) {
+      await abortTransactions(sessions);
+      return res.status(406).json({
+        success: false,
+        error: "Created failed"
       });
     }
+
+    // Check exist
+    const old = await Users.find({
+      ...pick(req.body, "username"),
+      isDeleted: false
+    });
+
+    if (old.length > 0) {
+      await abortTransactions(sessions);
+      return res.status(409).json({
+        success: false,
+        error: "This username is already exist"
+      });
+    }
+
+    // Done
+    await commitTransactions(sessions);
+
     return res.status(200).json({
       success: true,
-      data: newUser
+      data: newUser[0]
     });
   } catch (error) {
+    await abortTransactions(sessions);
     return res.status(500).json({
       success: false,
       error: error.message

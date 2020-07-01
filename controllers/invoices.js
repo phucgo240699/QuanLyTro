@@ -41,6 +41,7 @@ exports.create = async (req, res, next) => {
       });
     }
 
+    // Check room is empty
     if (isEmpty(room)) {
       return res.status(406).json({
         success: false,
@@ -52,24 +53,28 @@ exports.create = async (req, res, next) => {
     let now = new Date();
 
     // Check valid time for creating
-    if (!isEmpty(latest)) {
-      if (latest > now) {
-        return res.status(406).json({
-          success: false,
-          error: "Invalid"
-        });
-      }
+    if (isEmpty(latest)) {
+      return res.status(406).json({
+        success: false,
+        error: "Invalid latest invoice date"
+      });
+    }
+    if (latest > now) {
+      return res.status(406).json({
+        success: false,
+        error: "Invalid"
+      });
+    }
 
-      if (
-        // getMonth return month in 0 -> 11
-        now.getMonth() - latest.getMonth() <= 1 &&
-        now.getDate() < latest.getDate()
-      ) {
-        return res.status(406).json({
-          success: false,
-          error: "Too early for creating invoice"
-        });
-      }
+    if (
+      // getMonth return month in 0 -> 11
+      now.getMonth() - latest.getMonth() <= 1 &&
+      now.getDate() < latest.getDate()
+    ) {
+      return res.status(406).json({
+        success: false,
+        error: "Too early for creating invoice"
+      });
     }
 
     // Check some prices
@@ -127,21 +132,21 @@ exports.create = async (req, res, next) => {
       error: error.message
     });
   }
-  const start = new Date();
-  const doc = await model("rooms").findOne({
-    _id: "5ef6f212cce54d6a34206cc8",
-    isDeleted: false
-  });
-  const time = doc.createdAt;
-  res.json({
-    id: doc._id,
-    data: time - start,
-    minute: time.getMinutes(),
-    hour: time.getHours(),
-    day: time.getDate(),
-    month: time.getMonth() + 1,
-    year: time.getFullYear()
-  });
+  // const start = new Date();
+  // const doc = await model("rooms").findOne({
+  //   _id: "5ef6f212cce54d6a34206cc8",
+  //   isDeleted: false
+  // });
+  // const time = doc.createdAt;
+  // res.json({
+  //   id: doc._id,
+  //   data: time - start,
+  //   minute: time.getMinutes(),
+  //   hour: time.getHours(),
+  //   day: time.getDate(),
+  //   month: time.getMonth() + 1,
+  //   year: time.getFullYear()
+  // });
 };
 
 exports.get = async (req, res) => {
@@ -182,9 +187,13 @@ exports.getAll = async (req, res, next) => {
 
     let query;
     if (req.user.isAdmin === true) {
-      query = { isDeleted: false };
+      query = { ...pick(req.body, "roomId"), isDeleted: false };
     } else {
-      query = { isDeleted: false, user: req.user };
+      const customer = await model("customers").findOne({
+        _id: req.user.owner,
+        isDeleted: false
+      });
+      query = { isDeleted: false, ...pick(customer, "roomId") };
     }
 
     if (!page || !limit) {

@@ -40,6 +40,7 @@ const Rooms = new Schema(
       type: String,
       enum: ["empty", "available", "full"],
       required: true,
+      index: true,
       default: "empty"
     },
     isDeleted: {

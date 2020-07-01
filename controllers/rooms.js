@@ -106,11 +106,14 @@ exports.getAll = async (req, res, next) => {
     let rooms;
 
     if (!page || !limit) {
-      rooms = await Rooms.find({ isDeleted: false }).select(
+      rooms = await Rooms.find({
+        ...pick(req.body, "slotStatus"),
+        isDeleted: false
+      }).select(
         "name price name price square capacity amountOfVehicles slotStatus floor"
       );
     } else {
-      rooms = await Rooms.find({ isDeleted: false })
+      rooms = await Rooms.find({ ...pick(req.body, "slotStatus"), isDeleted: false })
         .select("name price square capacity amountOfVehicles slotStatus floor")
         .skip(limit * (page - 1))
         .limit(limit);
