@@ -152,7 +152,7 @@ exports.deleteUser = async (req, res, next) => {
     user.isDeleted = true;
     await user.save();
 
-    return res.status(200).json({ success: true, data: user._id });
+    return res.status(200).json({ success: true, data: user });
   } catch (error) {
     return res.status(500).json({
       success: false,

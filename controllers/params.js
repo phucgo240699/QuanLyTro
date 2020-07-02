@@ -143,7 +143,7 @@ exports.delete = async (req, res, next) => {
     }
     return res.status(200).json({
       success: true,
-      data: deleted._id
+      data: deleted
     });
   } catch (error) {
     return res.status(500).json({
