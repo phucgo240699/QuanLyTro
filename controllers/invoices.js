@@ -184,6 +184,8 @@ exports.getAll = async (req, res, next) => {
 
     const page = Number(req.query.page); // page index
     const limit = Number(req.query.limit); // limit docs per page
+    const startDate = req.body.startDate;
+    const endDate = req.body.endDate;
 
     let query;
     if (req.user.isAdmin === true) {
@@ -208,6 +210,16 @@ exports.getAll = async (req, res, next) => {
         isDeleted: false
       });
       query = { isDeleted: false, ...pick(customer, "roomId") };
+    }
+
+    if (!isEmpty(startDate) && !isEmpty(endDate)) {
+      query = {
+        ...query,
+        createdAt: {
+          $gte: startDate,
+          $lte: endDate
+        }
+      };
     }
 
     if (!page || !limit) {
