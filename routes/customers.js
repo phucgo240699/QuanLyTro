@@ -6,7 +6,7 @@ const { checkIsAdmin } = require("../services/checkAdmin");
 
 router.post("/", checkIsAdmin, customersController.create);
 router.get("/:id", checkIsAdmin, customersController.get);
-router.get("/", checkIsAdmin, customersController.getAll);
+router.post("/getAll", checkIsAdmin, customersController.getAll);
 router.put("/:id", checkIsAdmin, customersController.update);
 router.delete("/:id", checkIsAdmin, customersController.delete);
 

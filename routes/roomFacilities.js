@@ -6,16 +6,12 @@ const { checkIsAdmin } = require("../services/checkAdmin");
 
 // Facilities in room
 router.post("/", checkIsAdmin, roomFacilitiesController.addFacilityToRoom);
-router.get(
-  "/:roomId",
+router.post(
+  "/:roomId/getAll",
   checkIsAdmin,
   roomFacilitiesController.getAllFacilitiesInRoom
 );
 router.put("/:id", checkIsAdmin, roomFacilitiesController.updateFacilityInRoom);
-router.delete(
-  "/:id",
-  checkIsAdmin,
-  roomFacilitiesController.deleteFacilityInRoom
-);
+router.delete("/:id", checkIsAdmin, roomFacilitiesController.deleteFacilityInRoom);
 
 module.exports = router;
