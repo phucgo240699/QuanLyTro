@@ -99,17 +99,16 @@ exports.getAll = async (req, res, next) => {
   const page = Number(req.query.page); // page index
   const limit = Number(req.query.limit); // limit docs per page
 
+  let query = { ...pick(req.body, "name", "price", "quantity"), isDeleted: false };
   try {
     let facilities;
 
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
-      facilities = await Facilities.find({ isDeleted: false }).select(
-        "name price quantity"
-      );
+      facilities = await Facilities.find(query).select("name price quantity");
     } else {
       // Paginate
-      facilities = await Facilities.find({ isDeleted: false })
+      facilities = await Facilities.find(query)
         .select("name price quantity")
         .skip(limit * (page - 1))
         .limit(limit);

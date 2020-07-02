@@ -177,17 +177,17 @@ exports.getAllFacilitiesInRoom = async (req, res, next) => {
     }
 
     let docs;
-
+    let query = { roomId: roomId, isDeleted: false, ...pick(req.body, "quantity") };
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
       docs = await roomFacilities
-        .find({ roomId: roomId, isDeleted: false })
+        .find(query)
         .select("facilityId quantity")
         .populate("facilityId", "name");
     } else {
       // Paginate
       docs = await roomFacilities
-        .find({ roomId: roomId, isDeleted: false })
+        .find(query)
         .select("facilityId quantity")
         .populate("facilityId", "name")
         .skip(limit * (page - 1))

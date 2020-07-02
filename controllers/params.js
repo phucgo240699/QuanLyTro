@@ -114,7 +114,10 @@ exports.get = async (req, res) => {
 
 exports.getAll = async (req, res) => {
   try {
-    const params = await Params.find({ isDeleted: false });
+    const params = await Params.find({
+      ...pick(req.body, "name", "value"),
+      isDeleted: false
+    });
 
     return res.status(200).json({
       success: true,

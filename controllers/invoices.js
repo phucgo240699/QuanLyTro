@@ -187,7 +187,21 @@ exports.getAll = async (req, res, next) => {
 
     let query;
     if (req.user.isAdmin === true) {
-      query = { ...pick(req.body, "roomId"), isDeleted: false };
+      query = {
+        ...pick(
+          req.body,
+          "consumptionElectric",
+          "consumptionWater",
+          "waterPrice",
+          "electricPrice",
+          "internetPrice",
+          "parkingPrice",
+          "cleanPrice",
+          "totalPrice",
+          "roomId"
+        ),
+        isDeleted: false
+      };
     } else {
       const customer = await model("customers").findOne({
         _id: req.user.owner,

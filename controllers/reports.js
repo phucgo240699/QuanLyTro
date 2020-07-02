@@ -64,7 +64,7 @@ exports.getAll = async (req, res, next) => {
 
     let query;
     if (req.user.isAdmin === true) {
-      query = { isDeleted: false };
+      query = { ...pick(req.body, "name", "status", "userId"), isDeleted: false };
     } else {
       query = { userId: req.user._id, isDeleted: false };
     }

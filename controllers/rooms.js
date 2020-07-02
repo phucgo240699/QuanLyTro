@@ -104,16 +104,16 @@ exports.getAll = async (req, res, next) => {
     const limit = Number(req.query.limit); // limit docs per page
 
     let rooms;
-
+    let query = {
+      ...pick(req.body, "name", "floor", "price", "capacity", "slotStatus"),
+      isDeleted: false
+    };
     if (!page || !limit) {
-      rooms = await Rooms.find({
-        ...pick(req.body, "slotStatus"),
-        isDeleted: false
-      }).select(
+      rooms = await Rooms.find(query).select(
         "name price name price square capacity amountOfVehicles slotStatus floor"
       );
     } else {
-      rooms = await Rooms.find({ ...pick(req.body, "slotStatus"), isDeleted: false })
+      rooms = await Rooms.find(query)
         .select("name price square capacity amountOfVehicles slotStatus floor")
         .skip(limit * (page - 1))
         .limit(limit);

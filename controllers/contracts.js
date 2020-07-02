@@ -189,16 +189,27 @@ exports.getAll = async (req, res, next) => {
 
   try {
     let contracts;
-
+    let query = {
+      ...pick(
+        req.body,
+        "customerId",
+        "roomId",
+        "dueDate",
+        "deposit",
+        "entryDate",
+        "latestInvoiceDate"
+      ),
+      isDeleted: false
+    };
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
-      contracts = await Contracts.find({ isDeleted: false })
+      contracts = await Contracts.find(query)
         .select("customerId roomId")
         .populate("customerId", "name")
         .populate("roomId", "name");
     } else {
       // Paginate
-      contracts = await Contracts.find({ isDeleted: false })
+      contracts = await Contracts.find(query)
         .select("customerId roomId")
         .populate("customerId", "name")
         .populate("roomId", "name")
