@@ -27,7 +27,7 @@ exports.login = async (req, res, next) => {
     const token = jwt.sign(
       { username: req.body.username },
       "abdccf7cf5a25fb44f8cba244d42123285ce9207fac4db009e7b22423a17133f8ebc554537b64de47c8668ab9566c2078d4239b7e57be722edc887a3ad2bc40f",
-      { expiresIn: "10y" }
+      { expiresIn: "1m" }
     );
 
     return res.status(200).json({ success: isLogin, accessToken: token });
