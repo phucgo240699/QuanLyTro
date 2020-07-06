@@ -34,7 +34,7 @@ exports.create = async (req, res, next) => {
 
     // Check format date
     if (
-      moment(dueDate, "YYYY-MM-DD", true).isValid() ||
+      !moment(dueDate, "YYYY-MM-DD", true).isValid() ||
       !moment(entryDate, "YYYY-MM-DD", true).isValid()
     ) {
       return res.status(406).json({
