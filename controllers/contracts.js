@@ -1,6 +1,7 @@
 const Contracts = require("../model/contracts");
 const { isEmpty, pick } = require("lodash");
 const { model, startSession } = require("mongoose");
+const moment = require("moment");
 const { commitTransactions, abortTransactions } = require("../services/transactions");
 const { customerController } = require("./customers");
 
@@ -22,7 +23,8 @@ exports.create = async (req, res, next) => {
       isEmpty(name) ||
       isEmpty(dueDate) ||
       isEmpty(entryDate) ||
-      !deposit
+      !deposit ||
+      isEmpty(isPayAtEndMonth)
     ) {
       return res.status(406).json({
         success: false,
@@ -31,7 +33,10 @@ exports.create = async (req, res, next) => {
     }
 
     // Check format date
-    if (dueDate instanceof Date === false || entryDate instanceof Date === false) {
+    if (
+      moment(dueDate, "YYYY-MM-DD", true).isValid() ||
+      !moment(entryDate, "YYYY-MM-DD", true).isValid()
+    ) {
       return res.status(406).json({
         success: false,
         error: "Incorrect formate date"
