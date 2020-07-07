@@ -24,7 +24,7 @@ exports.create = async (req, res, next) => {
       isEmpty(dueDate) ||
       isEmpty(entryDate) ||
       !deposit ||
-      isEmpty(isPayAtEndMonth)
+      isPayAtEndMonth === undefined
     ) {
       return res.status(406).json({
         success: false,
