@@ -3,7 +3,7 @@ const { isEmpty, pick } = require("lodash");
 const { model, startSession } = require("mongoose");
 const moment = require("moment");
 const { commitTransactions, abortTransactions } = require("../services/transactions");
-const { customerController } = require("./customers");
+const customerController = require("./customers");
 
 exports.create = async (req, res, next) => {
   let sessions = [];
@@ -14,7 +14,6 @@ exports.create = async (req, res, next) => {
     const dueDate = req.body.dueDate;
     const deposit = req.body.deposit;
     const entryDate = req.body.entryDate;
-    const latestInvoiceDate = req.body.latestInvoiceDate;
     const isPayAtEndMonth = req.body.isPayAtEndMonth;
 
     if (
@@ -43,7 +42,7 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    // Check latestInvoiceDate
+    // Check entryDate
     if (entryDate > dueDate) {
       return res.status(406).json({
         success: false,
@@ -58,9 +57,23 @@ exports.create = async (req, res, next) => {
 
     // Create Host for Contract
     const { success, data, error } = await customerController.createHost({
-      identityCard: identityCard,
-      name: name,
-      roomId: roomId,
+      body: {
+        ...pick(
+          req.body,
+          "name",
+          "email",
+          "phoneNumber",
+          "birthday",
+          "identityCard",
+          "identityCardFront",
+          "identityCardBack",
+          "province",
+          "district",
+          "ward",
+          "address",
+          "roomId"
+        )
+      },
       session: session
     });
 
@@ -89,8 +102,11 @@ exports.create = async (req, res, next) => {
         newYear = entryDate.getFullYear();
       }
 
-      req.body.latestInvoiceDate.setMonth(newMonth);
-      req.body.latestInvoiceDate.setYear(newYear);
+      let latestInvoiceDate = req.body.latestInvoiceDate;
+      latestInvoiceDate.setMonth(newMonth);
+      latestInvoiceDate.setYear(newYear);
+
+      req.body.latestInvoiceDate = latestInvoiceDate;
     }
 
     // Create Contract
@@ -122,10 +138,10 @@ exports.create = async (req, res, next) => {
 
     const [oldContracts, room] = await Promise.all([
       Contracts.find({
-        $or: [{ roomId: roomId }, { customerId: customerId }],
+        $or: [{ roomId: roomId }, { customerId: req.body.customerId }],
         isDeleted: false
       }),
-      model("rooms").find({ _id: roomId, isDeleted: false })
+      model("rooms").findOne({ _id: roomId, isDeleted: false })
     ]);
 
     // Check exist
@@ -142,7 +158,7 @@ exports.create = async (req, res, next) => {
       await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
-        error: "This room is not empty"
+        error: "This room is much be empty"
       });
     }
 

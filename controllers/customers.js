@@ -3,39 +3,10 @@ const { isEmpty, pick } = require("lodash");
 const { model, startSession } = require("mongoose");
 const { commitTransactions, abortTransactions } = require("../services/transactions");
 
-exports.createHost = async ({ identityCard, name, roomId, session }) => {
+exports.createHost = async ({ body, session }) => {
   try {
-    // Check not enough property
-    if (isEmpty(identityCard) || isEmpty(name) || isEmpty(roomId)) {
-      return {
-        success: false,
-        error: "Not enough property"
-      };
-    }
-
     // Create customer
-    const newCustomer = await Customers.create(
-      [
-        {
-          ...pick(
-            req.body,
-            "name",
-            "email",
-            "phoneNumber",
-            "birthday",
-            "identityCard",
-            "identityCardFront",
-            "identityCardBack",
-            "province",
-            "district",
-            "ward",
-            "address",
-            "roomId"
-          )
-        }
-      ],
-      { session: session }
-    );
+    const newCustomer = await Customers.create([body], { session: session });
 
     if (isEmpty(newCustomer)) {
       return {
@@ -46,7 +17,7 @@ exports.createHost = async ({ identityCard, name, roomId, session }) => {
 
     // Check exist
     const oldCustomers = await Customers.find({
-      identityCard: identityCard,
+      identityCard: body.identityCard,
       isDeleted: false
     });
 
