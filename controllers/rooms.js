@@ -218,3 +218,27 @@ exports.delete = async (req, res, next) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+exports.adjustDebt = async ({ debt, roomId, isDeleted = false, session }) => {
+  //let sessions = [];
+  try {
+    // let session = await startSession(); // Start Session
+    // session.startTransaction(); // Start transaction
+    // sessions.push(session); // add session to sessions(list of session)
+
+    const result = await Rooms.findOneAndUpdate(
+      { _id: roomId, isDeleted: isDeleted },
+      { $inc: { debt: debt } },
+      { session, new: true }
+    );
+
+    return {
+      success: true
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};

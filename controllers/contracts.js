@@ -44,7 +44,7 @@ exports.create = async (req, res, next) => {
     }
 
     // Check latestInvoiceDate
-    if (entryDate < dueDate) {
+    if (entryDate > dueDate) {
       return res.status(406).json({
         success: false,
         error: "Invalid time. entryDate must be less than dueDate"
