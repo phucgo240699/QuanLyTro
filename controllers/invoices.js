@@ -10,7 +10,7 @@ exports.create = async (req, res, next) => {
     const electricPrice = req.body.electricPrice;
     const roomId = req.body.roomId;
     const internetPrice = req.body.internetPrice;
-    const parkingPrice = req.body.parkingPrice;
+    let parkingPrice = req.body.parkingPrice;
     const cleanPrice = req.body.cleanPrice;
 
     // Check not enough property
@@ -53,7 +53,7 @@ exports.create = async (req, res, next) => {
     let now = new Date();
 
     // Check valid time for creating
-    if (isEmpty(latest)) {
+    if (latest == undefined) {
       return res.status(406).json({
         success: false,
         error: "Invalid latest invoice date"
@@ -92,7 +92,7 @@ exports.create = async (req, res, next) => {
       (cleanPrice ? cleanPrice : 0);
 
     // Set up date create invoice
-    now.setDate(latestInvoiceDate.getDate());
+    now.setDate(latest.getDate());
     req.body.createdAt = now;
     // Create invoice
     const newDoc = await Invoices.create({
