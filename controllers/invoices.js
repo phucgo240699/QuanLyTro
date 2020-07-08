@@ -247,6 +247,40 @@ exports.getAll = async (req, res, next) => {
   }
 };
 
+exports.update = async (req, res, next) => {
+  try {
+    if (isEmpty(req.body.isPaid)) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enought property"
+      });
+    }
+
+    const updated = await Invoices.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { isPaid: isPaid },
+      { new: true }
+    );
+
+    if (isEmpty(updated)) {
+      return res.status(406).json({
+        success: false,
+        error: "Update failed"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: updated
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 exports.delete = async (req, res) => {
   try {
     const deleted = await Invoices.findOne({

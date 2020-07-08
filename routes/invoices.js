@@ -7,6 +7,7 @@ const { checkIsAdmin } = require("../services/checkAdmin");
 router.post("/", checkIsAdmin, invoiceController.create);
 router.post("/getAll", invoiceController.getAll);
 router.get("/:id", invoiceController.get);
+router.put("/:id", checkIsAdmin, invoiceController.update);
 router.delete("/:id", checkIsAdmin, invoiceController.delete);
 
 module.exports = router;
