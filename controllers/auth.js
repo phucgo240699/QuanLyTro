@@ -127,7 +127,7 @@ exports.register = async (req, res, next) => {
     }
 
     // Check owner is real
-    if (isEmpty(customer)) {
+    if (isAdmin === false && isEmpty(customer)) {
       await abortTransactions(sessions);
       return res.status(406).json({
         success: false,
