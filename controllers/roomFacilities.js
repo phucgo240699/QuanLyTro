@@ -110,6 +110,26 @@ exports.updateFacilityInRoom = async (req, res, next) => {
     //
     // Transaction
     //
+
+    if (quantity === undefined || quantity === "") {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
+
+    const roomFacility = await roomFacilities.findOne({
+      _id: id,
+      isDeleted: false
+    });
+
+    if (roomFacility.quantity === quantity) {
+      return res.status(200).json({
+        success: true,
+        data: roomFacility
+      });
+    }
+
     let session = await startSession();
     session.startTransaction();
     sessions.push(session);

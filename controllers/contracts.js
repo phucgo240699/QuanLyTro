@@ -11,16 +11,14 @@ exports.create = async (req, res, next) => {
     const roomId = req.body.roomId;
     const identityCard = req.body.identityCard;
     const name = req.body.name;
-    const dueDate = req.body.dueDate;
     const deposit = req.body.deposit;
-    const entryDate = req.body.entryDate;
 
     if (
       isEmpty(roomId) ||
       isEmpty(identityCard) ||
       isEmpty(name) ||
-      isEmpty(dueDate) ||
-      isEmpty(entryDate) ||
+      isEmpty(req.body.dueDate) ||
+      isEmpty(req.body.entryDate) ||
       !deposit
     ) {
       return res.status(406).json({
@@ -28,6 +26,9 @@ exports.create = async (req, res, next) => {
         error: "Not enough property"
       });
     }
+
+    const dueDate = new Date(req.body.dueDate);
+    const entryDate = new Date(req.body.entryDate);
 
     // Check format date
     if (
