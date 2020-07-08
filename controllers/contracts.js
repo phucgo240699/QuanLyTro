@@ -14,7 +14,6 @@ exports.create = async (req, res, next) => {
     const dueDate = req.body.dueDate;
     const deposit = req.body.deposit;
     const entryDate = req.body.entryDate;
-    const isPayAtEndMonth = req.body.isPayAtEndMonth;
 
     if (
       isEmpty(roomId) ||
@@ -22,8 +21,7 @@ exports.create = async (req, res, next) => {
       isEmpty(name) ||
       isEmpty(dueDate) ||
       isEmpty(entryDate) ||
-      !deposit ||
-      isPayAtEndMonth === undefined
+      !deposit
     ) {
       return res.status(406).json({
         success: false,
@@ -90,24 +88,23 @@ exports.create = async (req, res, next) => {
     req.body.customerId = newHostCustomer._id;
 
     req.body.latestInvoiceDate = entryDate;
-    if (isPayAtEndMonth === true) {
-      let newMonth;
-      let newYear;
 
-      if (entryDate.getMonth() >= 11) {
-        newMonth = 0;
-        newYear = entryDate.getFullYear() + 1;
-      } else {
-        newMonth = entryDate.getMonth() + 1;
-        newYear = entryDate.getFullYear();
-      }
+    let newMonth;
+    let newYear;
 
-      let latestInvoiceDate = req.body.latestInvoiceDate;
-      latestInvoiceDate.setMonth(newMonth);
-      latestInvoiceDate.setYear(newYear);
-
-      req.body.latestInvoiceDate = latestInvoiceDate;
+    if (entryDate.getMonth() >= 11) {
+      newMonth = 0;
+      newYear = entryDate.getFullYear() + 1;
+    } else {
+      newMonth = entryDate.getMonth() + 1;
+      newYear = entryDate.getFullYear();
     }
+
+    let latestInvoiceDate = req.body.latestInvoiceDate;
+    latestInvoiceDate.setMonth(newMonth);
+    latestInvoiceDate.setYear(newYear);
+
+    req.body.latestInvoiceDate = latestInvoiceDate;
 
     // Create Contract
     const newContract = await Contracts.create(
@@ -241,6 +238,56 @@ exports.getAll = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       data: contracts
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.update = async (req, res, next) => {
+  try {
+    const updated = await Contracts.findOne({
+      _id: req.params.id,
+      isDeleted: false
+    });
+
+    if (isEmpty(updated)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    if (isEmpty(req.body.dueDate)) {
+      return res.status(406).json({
+        success: false,
+        error: "Not enough property"
+      });
+    }
+
+    if (!moment(req.body.dueDate, "YYYY-MM-DD", true).isValid()) {
+      return res.status(406).json({
+        success: false,
+        error: "Incorrect formate date"
+      });
+    }
+
+    if (req.body.dueDate <= updated.dueDate) {
+      return res.status(406).json({
+        success: false,
+        error: "New due date must be greater than old"
+      });
+    }
+
+    updated.dueDate = req.body.dueDate;
+    await updated.save();
+
+    return res.status(200).json({
+      success: true,
+      data: updated
     });
   } catch (error) {
     return res.status(500).json({
