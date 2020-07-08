@@ -223,13 +223,13 @@ exports.getAll = async (req, res, next) => {
     if (!page || !limit) {
       // Not paginate if request doesn't has one of these param: page, limit
       invoices = await Invoices.find(query)
-        .select("roomId totalPrice isPaid")
+        .select("roomId totalPrice isPaid createdAt")
         .populate("roomId", "name");
     } else {
       // Paginate
       invoices = await Invoices.aggregate()
         .find(query)
-        .select("roomId totalPrice isPaid")
+        .select("roomId totalPrice isPaid createdAt")
         .populate("roomId", "name")
         .skip(limit * (page - 1))
         .limit(limit);
