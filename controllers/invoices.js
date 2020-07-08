@@ -153,7 +153,7 @@ exports.get = async (req, res) => {
     if (req.user.isAdmin === true) {
       query = { _id: req.params.id, isDeleted: false };
     } else {
-      query = { _id: req.params.id, isDeleted: false, user: req.user };
+      query = { _id: req.params.id, isDeleted: false };
     }
     const invoice = await Invoices.findOne(query);
 
