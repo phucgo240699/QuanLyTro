@@ -374,10 +374,16 @@ exports.delete = async (req, res, next) => {
       });
     }
 
-    customer.isDeleted = true;
-    user.isDeleted = true;
+    if (!isEmpty(user)) {
+      customer.isDeleted = true;
+      user.isDeleted = true;
 
-    await Promise.all([customer.save(), user.save()]);
+      await Promise.all([customer.save(), user.save()]);
+    } else {
+      customer.isDeleted = true;
+
+      await customer.save();
+    }
 
     return res.status(200).json({
       success: true,
