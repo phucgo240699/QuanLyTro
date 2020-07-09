@@ -350,3 +350,73 @@ exports.delete = async (req, res) => {
     });
   }
 };
+
+exports.deleteByRoomId = async (req, res) => {
+  try {
+    const deleted = await Invoices.findOne({
+      roomId: req.params.roomId,
+      isDeleted: false
+    });
+
+    if (isEmpty(deleted)) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found"
+      });
+    }
+
+    const [invoices, contract] = await Promise.all([
+      Invoices.find({ roomId: deleted.roomId, isDeleted: false }).sort({ createdAt: 1 }),
+      model("contracts").findOne({ roomId: deleted.roomId, isDeleted: false })
+    ]);
+
+    if (isEmpty(invoices) || invoices.length === 0) {
+      return res.status(406).json({
+        success: false,
+        error: "Empty invoices for this room"
+      });
+    }
+
+    if (isEmpty(contract)) {
+      return res.status(404).json({
+        success: false,
+        error: "Contract hasn't created yet"
+      });
+    }
+
+    if (invoices.length >= 2) {
+      contract.latestInvoiceDate = invoices[1].createdAt;
+    } else {
+      let newMonth;
+      let newYear;
+      let entryDate = contract.entryDate;
+      let latestInvoiceDate = contract.entryDate;
+
+      if (entryDate.getMonth() >= 11) {
+        newMonth = 0;
+        newYear = entryDate.getFullYear() + 1;
+      } else {
+        newMonth = entryDate.getMonth() + 1;
+        newYear = entryDate.getFullYear();
+      }
+
+      latestInvoiceDate.setMonth(newMonth);
+      latestInvoiceDate.setYear(newYear);
+
+      contract.latestInvoiceDate = latestInvoiceDate;
+    }
+
+    deleted.isDeleted = true;
+    await Promise.all([contract.save(), deleted.save()]);
+
+    return res.status(200).json({
+      success: true,
+      data: deleted
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
