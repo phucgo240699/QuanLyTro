@@ -249,16 +249,16 @@ exports.getAll = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    if (isEmpty(req.body.isPaid)) {
+    if (req.body.isPaid === undefined) {
       return res.status(406).json({
         success: false,
-        error: "Not enought property"
+        error: "Not enough property"
       });
     }
 
     const updated = await Invoices.findOneAndUpdate(
       { _id: req.params.id, isDeleted: false },
-      { isPaid: isPaid },
+      { isPaid: req.body.isPaid },
       { new: true }
     );
 
