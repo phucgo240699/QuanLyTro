@@ -198,7 +198,8 @@ exports.getAll = async (req, res, next) => {
           "parkingPrice",
           "cleanPrice",
           "totalPrice",
-          "roomId"
+          "roomId",
+          "isPaid"
         ),
         isDeleted: false
       };
