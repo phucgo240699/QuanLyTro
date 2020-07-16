@@ -24,17 +24,6 @@ app.use("/invoices", authenticateToken, require("./routes/invoices"));
 app.use("/params", authenticateToken, require("./routes/params"));
 app.use("/reports", authenticateToken, require("./routes/reports"));
 
-app.get("/", authenticateToken, (req, res) => {
-  res.send("<h1> Hello world</h1>");
-});
-app.get("/users", async (req, res) => {
-  try {
-    const users = await mongoose.model("users").find().select("username password");
-    return res.json({ success: true, data: users });
-  } catch (error) {
-    return res.json({ success: false, error: error });
-  }
-});
 mongoose
   .connect(
     "mongodb+srv://phucly:6J0UaO4A9T3lE2Yj@quanlytro-kcaua.mongodb.net/shop?retryWrites=true&w=majority",
