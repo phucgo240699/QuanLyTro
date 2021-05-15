@@ -16,6 +16,7 @@ const { urlencoded } = require("body-parser");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
 app.use(fileUpload())
+app.use(express.static("./public"))
 
 app.get("/checkToken", checkToken);
 app.use("/users", require("./routes/auth"));
